@@ -162,10 +162,16 @@ export function LoginPage({
           <h2>{cloudEnabled ? "登录 RepLoop" : "进入记忆库"}</h2>
           <p>
             {cloudEnabled
-              ? "同一个账号可在手机和电脑间同步学习进度。"
+              ? "邮箱只用于识别账号，确认邮件关闭后不会发送验证邮件。"
               : "昵称用于本地展示。口令不会离开当前设备。"}
           </p>
         </div>
+
+        {!cloudEnabled ? (
+          <div className="login-mode-note">
+            当前部署尚未配置 Supabase，因此暂时使用本地模式。
+          </div>
+        ) : null}
 
         <form className="login-form" onSubmit={submit}>
           <label className="login-field">

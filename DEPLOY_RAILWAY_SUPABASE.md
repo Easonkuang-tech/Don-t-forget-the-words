@@ -36,8 +36,10 @@ supabase db push
 
 ```text
 Enable Email provider: 开启
-Confirm email: 建议开启
+Confirm email: 关闭
 ```
+
+关闭 `Confirm email` 后，邮箱只作为账号标识，不发送确认邮件，也不需要配置 SMTP。
 
 5. Authentication → URL Configuration：
 

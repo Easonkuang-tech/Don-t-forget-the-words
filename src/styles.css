@@ -1916,8 +1916,8 @@ p {
 .login-shell {
   display: grid;
   min-height: 100vh;
-  place-items: center;
-  padding: 24px;
+  place-items: stretch;
+  padding: 0;
   background: var(--canvas);
 }
 
@@ -1927,18 +1927,19 @@ p {
 }
 
 .login-shell {
-  grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
-  width: min(100%, 1080px);
-  min-height: min(720px, calc(100vh - 48px));
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  width: 100%;
+  min-height: 100vh;
   overflow: hidden;
-  border: 1px solid var(--line-strong);
-  border-radius: 8px;
+  border: 0;
+  border-radius: 0;
   background: var(--surface);
-  box-shadow: 0 24px 70px rgba(22, 36, 31, 0.12);
+  box-shadow: none;
 }
 
 .login-story {
   display: flex;
+  min-height: 100vh;
   flex-direction: column;
   justify-content: space-between;
   padding: clamp(30px, 5vw, 58px);
@@ -2113,6 +2114,7 @@ p {
 
 .login-panel {
   display: flex;
+  min-height: 100vh;
   flex-direction: column;
   justify-content: center;
   padding: clamp(30px, 5vw, 62px);
@@ -2221,6 +2223,16 @@ p {
   background: var(--green-soft);
   color: #28584d;
   font-size: 0.76rem;
+}
+
+.login-mode-note {
+  margin-bottom: 18px;
+  padding: 11px 13px;
+  border-left: 3px solid var(--amber);
+  background: var(--amber-soft);
+  color: #755019;
+  font-size: 0.76rem;
+  line-height: 1.55;
 }
 
 .login-submit {
@@ -2699,12 +2711,12 @@ p {
 
   .login-shell {
     grid-template-columns: 1fr;
-    width: min(100%, 620px);
+    width: 100%;
     min-height: 0;
   }
 
   .login-story {
-    min-height: 390px;
+    min-height: 44vh;
     padding: 28px;
   }
 
@@ -2717,6 +2729,7 @@ p {
   }
 
   .login-panel {
+    min-height: 56vh;
     padding: 30px 28px;
   }
 
