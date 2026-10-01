@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: reloop-cloud
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATA_DIR
+        value: /app/data
+      - key: SEED_DIR
+        value: /app/build-data
+    disk:
+      name: reloop-data
+      mountPath: /app/data
+      sizeGB: 1

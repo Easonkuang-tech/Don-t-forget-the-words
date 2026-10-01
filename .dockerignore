@@ -1,0 +1,12 @@
+node_modules
+dist
+.artifacts
+.git
+.env
+.env.local
+RepLoop-cloudstudio.zip
+data/ecdict.csv
+data/ecdict.sqlite
+data/ecdict.sqlite-shm
+data/ecdict.sqlite-wal
+*.log

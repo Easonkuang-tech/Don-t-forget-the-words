@@ -1,0 +1,114 @@
+[
+  {
+    "word": "blip",
+    "phonetic": "blɪp",
+    "definition": "a small spot of light on a radar screen",
+    "translation": "n. 雷达屏幕上的小光点；短暂出现的小信号",
+    "pos": "n."
+  },
+  {
+    "word": "missile",
+    "phonetic": "ˈmɪsaɪl",
+    "definition": "a weapon that is sent through the air and explodes",
+    "translation": "n. 导弹；发射物",
+    "pos": "n."
+  },
+  {
+    "word": "identical",
+    "phonetic": "aɪˈdentɪkl",
+    "definition": "exactly the same",
+    "translation": "adj. 完全相同的；同一的",
+    "pos": "adj."
+  },
+  {
+    "word": "despite",
+    "phonetic": "dɪˈspaɪt",
+    "definition": "used to show that something happens even though another fact exists",
+    "translation": "prep. 尽管；不管",
+    "pos": "prep."
+  },
+  {
+    "word": "instruct",
+    "phonetic": "ɪnˈstrʌkt",
+    "definition": "to tell someone what they should do",
+    "translation": "v. 指示；教导；命令",
+    "pos": "v."
+  },
+  {
+    "word": "balance",
+    "phonetic": "ˈbæləns",
+    "definition": "an amount of money in an account; a state of stability",
+    "translation": "n. 余额；平衡；天平",
+    "pos": "n./v."
+  },
+  {
+    "word": "corporate",
+    "phonetic": "ˈkɔːpərət",
+    "definition": "relating to a large company",
+    "translation": "adj. 公司的；法人的；团体的",
+    "pos": "adj."
+  },
+  {
+    "word": "autopilot",
+    "phonetic": "ˈɔːtoʊpaɪlət",
+    "definition": "a system that controls a vehicle without a person operating it",
+    "translation": "n. 自动驾驶；自动航行装置",
+    "pos": "n."
+  },
+  {
+    "word": "stunned",
+    "phonetic": "stʌnd",
+    "definition": "very shocked or surprised",
+    "translation": "adj. 震惊的；目瞪口呆的",
+    "pos": "adj."
+  },
+  {
+    "word": "whenever",
+    "phonetic": "wenˈevər",
+    "definition": "every time that something happens",
+    "translation": "conj. 每当；无论何时",
+    "pos": "conj."
+  },
+  {
+    "word": "make the right call",
+    "phonetic": "",
+    "definition": "to make the correct decision in an important situation",
+    "translation": "做出正确判断；关键时刻作出正确决定",
+    "pos": "phrase"
+  },
+  {
+    "word": "use up the balance",
+    "phonetic": "",
+    "definition": "to consume all the remaining money or value",
+    "translation": "把余额用完；消耗殆尽",
+    "pos": "phrase"
+  },
+  {
+    "word": "cash out a customer",
+    "phonetic": "",
+    "definition": "to settle a customer's account at a checkout",
+    "translation": "给顾客结账",
+    "pos": "phrase"
+  },
+  {
+    "word": "in a row",
+    "phonetic": "",
+    "definition": "one after another without interruption",
+    "translation": "连续地；一个接一个地",
+    "pos": "phrase"
+  },
+  {
+    "word": "come across",
+    "phonetic": "",
+    "definition": "to meet or find someone or something by chance",
+    "translation": "偶然遇见；无意中发现",
+    "pos": "phrase"
+  },
+  {
+    "word": "kick in",
+    "phonetic": "",
+    "definition": "to start to have an effect",
+    "translation": "开始起作用；生效",
+    "pos": "phrase"
+  }
+]

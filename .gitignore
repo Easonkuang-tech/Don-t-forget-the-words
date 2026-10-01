@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.artifacts/
+.env
+.env.local
+RepLoop-cloudstudio.zip
+.supabase/
+.workbuddy/
+data/*.sqlite
+data/*.sqlite-shm
+data/*.sqlite-wal
+data/ecdict.csv
+translation-cache.json
+*.log
+.DS_Store

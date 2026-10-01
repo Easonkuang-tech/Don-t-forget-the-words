@@ -1,0 +1,13 @@
+{
+  "name": "RepLoop",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:24",
+  "postCreateCommand": "npm install && npm run dictionary:setup",
+  "postStartCommand": "npm run cloudstudio",
+  "forwardPorts": [4173],
+  "portsAttributes": {
+    "4173": {
+      "label": "RepLoop",
+      "onAutoForward": "openPreview"
+    }
+  }
+}

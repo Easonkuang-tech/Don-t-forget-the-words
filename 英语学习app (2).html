@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>生词科学记忆 App 2.3 - 逻辑修复版</title>
+    <style>
+        :root { --primary: #4a90e2; --success: #28a745; --danger: #dc3545; --warning: #f39c12; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; display: flex; flex-direction: column; align-items: center; padding-bottom: 50px; }
+        #container { background: white; width: 95%; max-width: 650px; margin-top: 20px; padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .tab-nav { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; flex-wrap: wrap; }
+        .tab-nav button { background: none; border: none; padding: 10px 15px; cursor: pointer; font-weight: bold; color: #666; border-radius: 5px; }
+        .tab-nav button.active { color: white; background: var(--primary); }
+        .page { display: none; }
+        .page.active { display: block; }
+        textarea { width: 100%; height: 120px; margin: 10px 0; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        input { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .btn-main { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; width: 100%; font-size: 1rem; margin-top: 10px; }
+        .db-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
+        .db-table th, .db-table td { border: 1px solid #eee; padding: 8px; text-align: left; }
+        .db-table th { background: #f8f9fa; }
+        .editable { background: #fffdf0; border-bottom: 1px dashed var(--warning); }
+        .word-display { font-size: 1.8rem; font-weight: bold; margin: 25px 0; color: #333; text-align: center; min-height: 2.5rem; }
+        .options { display: grid; gap: 12px; }
+        .option-btn { padding: 16px; border: 2px solid #eee; border-radius: 10px; background: white; cursor: pointer; font-size: 1rem; transition: 0.2s; }
+        #modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; }
+        .modal { background: white; padding: 25px; border-radius: 12px; width: 80%; max-width: 300px; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div id="container">
+    <div class="tab-nav">
+        <button id="nav-quiz" class="active" onclick="showPage('quiz')">复习测验</button>
+        <button id="nav-all" onclick="forceReviewAll()">反复记忆(无尽模式)</button>
+        <button id="nav-add" onclick="showPage('add')">录入新词</button>
+        <button id="nav-db" onclick="showPage('db')">词库管理</button>
+    </div>
+
+    <div id="page-add" class="page">
+        <h3>录入新专题</h3>
+        <input type="text" id="topic-name" placeholder="专题名称">
+        <textarea id="word-input" placeholder="格式：英文词伙 | 中文含义"></textarea>
+        <button class="btn-main" onclick="saveNewTopic()">存入库中</button>
+    </div>
+
+    <div id="page-db" class="page">
+        <h3>我的记忆库</h3>
+        <div style="overflow-x: auto;">
+            <table class="db-table">
+                <thead>
+                    <tr><th>专题</th><th>英文</th><th>中文</th><th>阶段</th><th>操作</th></tr>
+                </thead>
+                <tbody id="db-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="page-quiz" class="page active">
+        <div id="quiz-status" style="margin-bottom: 15px; color: #666; font-size: 0.9rem;"></div>
+        <div id="quiz-area">
+            <div class="word-display" id="display-word">库为空，请先录入</div>
+            <div class="options" id="display-options"></div>
+            <div id="quiz-msg" style="margin-top: 20px; font-weight: bold; text-align: center;"></div>
+        </div>
+        <div id="empty-msg" style="display:none; text-align: center; padding: 40px 0;">
+            <h2 style="color: var(--success);">🎈 计划复习已完成！</h2>
+            <button class="btn-main" style="background: var(--warning)" onclick="forceReviewAll()">还是想背？开启无尽模式</button>
+        </div>
+    </div>
+</div>
+
+<div id="modal-overlay">
+    <div class="modal">
+        <h3>🚀 存入成功！</h3>
+        <p>数据已录入系统数据库。</p>
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button style="flex:1; padding:10px;" onclick="closeModal(false)">稍后再背</button>
+            <button style="flex:1; padding:10px; background:var(--primary); color:white; border:none; border-radius:5px;" onclick="closeModal(true)">立刻开启 Day 1</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 艾宾浩斯阶梯：0.5天(12h), 1天, 2天, 4天, 7天, 15天
+    const REVIEW_DAYS = [0.5, 1, 2, 4, 7, 15];
+    let db = JSON.parse(localStorage.getItem('vocab_db')) || [];
+    let currentQueue = [];
+    let isInfinite = false;
+
+    function showPage(pId) {
+        isInfinite = false;
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.tab-nav button').forEach(b => b.classList.remove('active'));
+        document.getElementById('page-'+pId).classList.add('active');
+        document.getElementById('nav-'+pId).classList.add('active');
+        if(pId === 'quiz') initQuiz();
+        if(pId === 'db') renderDB();
+    }
+
+    function saveNewTopic() {
+        const topic = document.getElementById('topic-name').value || "默认专题";
+        const text = document.getElementById('word-input').value.trim();
+        if(!text) return alert("内容为空");
+
+        text.split('\n').forEach(line => {
+            const [eng, target] = line.split('|').map(s => s.trim());
+            if(eng && target) {
+                db.push({
+                    topic, eng, target,
+                    lastTime: Date.now(),
+                    reviewLevel: 0,
+                    nextTime: Date.now() // 立即开始复习
+                });
+            }
+        });
+        localStorage.setItem('vocab_db', JSON.stringify(db));
+        document.getElementById('word-input').value = "";
+        document.getElementById('modal-overlay').style.display = 'flex';
+    }
+
+    function closeModal(start) {
+        document.getElementById('modal-overlay').style.display = 'none';
+        if(start) showPage('quiz');
+    }
+
+    function initQuiz() {
+        const now = Date.now();
+        // 筛选逻辑：当前时间 >= 计划复习时间
+        currentQueue = db.filter(item => item.nextTime <= now);
+        renderQuiz();
+    }
+
+    function forceReviewAll() {
+        // 重要修复：从 db 重新获取最新数据
+        db = JSON.parse(localStorage.getItem('vocab_db')) || [];
+        if(db.length === 0) return alert("记忆库是空的，请先录入词伙！");
+        
+        isInfinite = true;
+        currentQueue = [...db].sort(() => Math.random() - 0.5);
+        
+        // 强制切换视图
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById('page-quiz').classList.add('active');
+        document.querySelectorAll('.tab-nav button').forEach(b => b.classList.remove('active'));
+        document.getElementById('nav-all').classList.add('active');
+        
+        renderQuiz();
+    }
+
+    function renderQuiz() {
+        const area = document.getElementById('quiz-area');
+        const empty = document.getElementById('empty-msg');
+        const status = document.getElementById('quiz-status');
+
+        if(currentQueue.length === 0) {
+            area.style.display = 'none';
+            empty.style.display = isInfinite ? 'none' : 'block';
+            if(isInfinite) alert("所有词伙已过一遍！");
+            return;
+        }
+
+        area.style.display = 'block';
+        empty.style.display = 'none';
+        const item = currentQueue[0];
+        status.innerText = `${isInfinite ? '🔥 无尽模式' : '📅 艾宾浩斯复习'} | 剩余词数：${currentQueue.length}`;
+        document.getElementById('display-word').innerText = item.eng;
+        document.getElementById('quiz-msg').innerText = "";
+
+        let allTargets = [...new Set(db.map(d => d.target))];
+        let distractors = allTargets.filter(t => t !== item.target).sort(() => 0.5 - Math.random()).slice(0, 3);
+        let opts = [...distractors, item.target].sort(() => 0.5 - Math.random());
+
+        const container = document.getElementById('display-options');
+        container.innerHTML = "";
+        opts.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.innerText = opt;
+            btn.onclick = () => {
+                if(opt === item.target) {
+                    btn.style.background = "#d4edda";
+                    if(!isInfinite) updateItem(item);
+                    setTimeout(() => { currentQueue.shift(); renderQuiz(); }, 600);
+                } else {
+                    btn.style.background = "#f8d7da";
+                    const wrong = currentQueue.shift();
+                    currentQueue.push(wrong); // 错题重排逻辑
+                    setTimeout(renderQuiz, 1000);
+                }
+            };
+            container.appendChild(btn);
+        });
+    }
+
+    function updateItem(item) {
+        const i = db.findIndex(d => d.eng === item.eng && d.topic === item.topic);
+        if(i > -1) {
+            const days = REVIEW_DAYS[db[i].reviewLevel] || 30;
+            db[i].nextTime = Date.now() + (days * 24 * 60 * 60 * 1000);
+            db[i].reviewLevel++;
+            localStorage.setItem('vocab_db', JSON.stringify(db));
+        }
+    }
+
+    function renderDB() {
+        const body = document.getElementById('db-body');
+        body.innerHTML = db.map((item, index) => `
+            <tr>
+                <td contenteditable="true" onblur="db[${index}].topic=this.innerText;save()">临:${item.topic}</td>
+                <td contenteditable="true" onblur="db[${index}].eng=this.innerText;save()"><b>${item.eng}</b></td>
+                <td contenteditable="true" onblur="db[${index}].target=this.innerText;save()">${item.target}</td>
+                <td>Lvl ${item.reviewLevel}</td>
+                <td><button onclick="db.splice(${index},1);save();renderDB()" style="color:red">删</button></td>
+            </tr>
+        `).join('');
+    }
+
+    function save() { localStorage.setItem('vocab_db', JSON.stringify(db)); }
+
+    initQuiz();
+</script>
+</body>
+</html>
