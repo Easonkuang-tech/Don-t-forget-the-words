@@ -1396,6 +1396,69 @@ p {
   backdrop-filter: blur(14px);
 }
 
+.auto-rating-dock {
+  position: fixed;
+  z-index: 40;
+  right: 16px;
+  bottom: max(14px, env(safe-area-inset-bottom, 0px));
+  left: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: min(calc(100% - 32px), 728px);
+  margin: 0 auto;
+  padding: 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(14px);
+}
+
+.auto-rating-dock > p {
+  width: 100%;
+  padding: 10px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  text-align: center;
+}
+
+.system-rating {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 9px;
+}
+
+.system-rating span,
+.system-rating small {
+  color: var(--muted);
+  font-size: 0.64rem;
+}
+
+.system-rating strong {
+  font-size: 0.88rem;
+}
+
+.system-rating.rating-forgot strong {
+  color: var(--red);
+}
+
+.system-rating.rating-hard strong {
+  color: var(--amber);
+}
+
+.system-rating.rating-good strong {
+  color: var(--blue);
+}
+
+.system-rating.rating-easy strong {
+  color: var(--green);
+}
+
 .rating-button {
   display: flex;
   min-height: 54px;
@@ -2940,6 +3003,12 @@ p {
   }
 
   .rating-dock {
+    right: 8px;
+    left: 8px;
+    width: calc(100% - 16px);
+  }
+
+  .auto-rating-dock {
     right: 8px;
     left: 8px;
     width: calc(100% - 16px);

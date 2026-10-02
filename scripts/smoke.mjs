@@ -16,6 +16,10 @@ const browser = await chromium.launch({
   executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe"
 });
 
+async function continueReview(page) {
+  await page.getByRole("button", { name: /下一题|完成本轮/ }).click();
+}
+
 const context = await browser.newContext({
   viewport: { width: 1280, height: 900 },
   deviceScaleFactor: 1
@@ -80,7 +84,7 @@ try {
       .fill(/平衡|相等|差额/.test(prompt ?? "") ? "balance" : "corporate");
     await page.getByRole("button", { name: "提交答案" }).click();
     await page.getByText("回答正确", { exact: true }).waitFor();
-    await page.getByRole("button", { name: /良好/ }).click();
+    await continueReview(page);
   }
   await page.getByText("这一轮结束了", { exact: true }).waitFor();
   await page.getByRole("button", { name: "返回首页" }).click();
@@ -102,7 +106,7 @@ try {
     }
     await page.getByRole("button", { name: "提交答案" }).click();
     await page.getByText("回答正确", { exact: true }).waitFor();
-    await page.getByRole("button", { name: /良好/ }).click();
+    await continueReview(page);
   }
   await page.getByText("这一轮结束了", { exact: true }).waitFor();
   await page.getByRole("button", { name: "返回首页" }).click();
@@ -119,7 +123,7 @@ try {
       })
       .click();
     await page.getByText("回答正确", { exact: true }).waitFor();
-    await page.getByRole("button", { name: /良好/ }).click();
+    await continueReview(page);
   }
   await page.getByText("这一轮结束了", { exact: true }).waitFor();
   await page.screenshot({

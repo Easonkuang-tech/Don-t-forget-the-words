@@ -46,8 +46,6 @@ interface PendingResult {
   answerTimeMs: number;
 }
 
-const ratingOrder: Rating[] = ["forgot", "hard", "good", "easy"];
-
 export function ReviewPage({ request, onExit }: ReviewPageProps) {
   const cards = useLiveQuery(() => db.cards.toArray(), [], [] as Card[]) ?? [];
   const settings = useLiveQuery(() => db.settings.get("app"));
@@ -158,11 +156,12 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
     firstInputAtRef.current = null;
   }, [question?.id]);
 
-  const commitReview = async (userRating: Rating) => {
+  const commitReview = async () => {
     if (!question || !result) {
       return;
     }
 
+    const userRating = result.suggestedRating;
     const now = Date.now();
     const schedule = calculateSchedule({
       card: question.card,
@@ -227,11 +226,9 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
       if (!result) {
         return;
       }
-      const ratingIndex = Number(event.key) - 1;
-      const rating = ratingOrder[ratingIndex];
-      if (rating) {
+      if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
-        void commitReview(rating);
+        void commitReview();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -637,7 +634,7 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
             <div>
               <h2>{result.correct ? "回答正确" : "再记一次"}</h2>
               <p>
-                用时 {formatDuration(result.totalTimeMs)} · 系统建议
+                用时 {formatDuration(result.totalTimeMs)} · 系统判定
                 {ratingLabel(result.suggestedRating)}
               </p>
             </div>
@@ -663,38 +660,42 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
         </section>
       ) : null}
 
-      <div className="rating-dock" aria-label="记忆评级">
-        {ratingOrder.map((rating, ratingIndex) => {
-          const preview = calculateSchedule({
-            card: question.card,
-            performance: {
-              isCorrect: result?.correct ?? false,
-              attempts: 1,
-              mode: question.mode,
-              elapsedMilliseconds: result?.totalTimeMs ?? timer.elapsed
-            },
-            userRating: rating,
-            now: Date.now()
-          });
-          const recommended = result?.suggestedRating === rating;
-          return (
-            <button
-              type="button"
-              key={rating}
-              className={`rating-button rating-${rating} ${recommended ? "is-recommended" : ""}`}
-              disabled={!result}
-              onClick={() => void commitReview(rating)}
-              title={`快捷键 ${ratingIndex + 1}`}
-            >
-              <span>{ratingLabel(rating)}</span>
+      <div className="auto-rating-dock" aria-label="系统记忆判定">
+        {result ? (
+          <>
+            <div className={`system-rating rating-${result.suggestedRating}`}>
+              <span>系统判定</span>
+              <strong>{ratingLabel(result.suggestedRating)}</strong>
               <small>
                 {request.scope === "random"
-                  ? "仅记录"
-                  : formatRelativeDue(preview.nextReviewAt)}
+                  ? "仅记录，不修改计划"
+                  : formatRelativeDue(
+                      calculateSchedule({
+                        card: question.card,
+                        performance: {
+                          isCorrect: result.correct,
+                          attempts: 1,
+                          mode: question.mode,
+                          elapsedMilliseconds: result.totalTimeMs
+                        },
+                        userRating: result.suggestedRating,
+                        now: Date.now()
+                      }).nextReviewAt
+                    )}
               </small>
+            </div>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => void commitReview()}
+            >
+              {index + 1 >= questions.length ? "完成本轮" : "下一题"}
+              <ChevronRight size={17} />
             </button>
-          );
-        })}
+          </>
+        ) : (
+          <p>提交答案后由系统自动判断熟悉程度</p>
+        )}
       </div>
     </div>
   );
