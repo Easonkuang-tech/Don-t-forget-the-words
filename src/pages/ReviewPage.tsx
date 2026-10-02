@@ -56,6 +56,8 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [hintTyped, setHintTyped] = useState("");
   const [result, setResult] = useState<PendingResult | null>(null);
+  const [committing, setCommitting] = useState(false);
+  const [commitError, setCommitError] = useState("");
   const [summary, setSummary] = useState({
     completed: 0,
     correct: 0,
@@ -153,14 +155,18 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
     setSelectedOption(null);
     setHintTyped("");
     setResult(null);
+    setCommitting(false);
+    setCommitError("");
     firstInputAtRef.current = null;
   }, [question?.id]);
 
   const commitReview = async () => {
-    if (!question || !result) {
+    if (!question || !result || committing) {
       return;
     }
 
+    setCommitting(true);
+    setCommitError("");
     const userRating = result.suggestedRating;
     const now = Date.now();
     const schedule = calculateSchedule({
@@ -207,17 +213,24 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
       reviewedAt: now
     };
 
-    await createCardLog(log, affectsSchedule);
-    setSummary((current) => ({
-      completed: current.completed + 1,
-      correct: current.correct + (result.correct ? 1 : 0),
-      duration: current.duration + result.totalTimeMs
-    }));
-
-    if (index + 1 >= questions.length) {
-      setIndex(questions.length);
-    } else {
-      setIndex((current) => current + 1);
+    try {
+      await createCardLog(log, affectsSchedule);
+    } catch (error) {
+      setCommitError(
+        error instanceof Error
+          ? `云端保存失败，已继续：${error.message}`
+          : "云端保存失败，已继续"
+      );
+    } finally {
+      setSummary((current) => ({
+        completed: current.completed + 1,
+        correct: current.correct + (result.correct ? 1 : 0),
+        duration: current.duration + result.totalTimeMs
+      }));
+      setIndex((current) =>
+        index + 1 >= questions.length ? questions.length : current + 1
+      );
+      setCommitting(false);
     }
   };
 
@@ -636,6 +649,7 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
               <p>
                 用时 {formatDuration(result.totalTimeMs)} · 系统判定
                 {ratingLabel(result.suggestedRating)}
+                {isHintTyping ? " · 提示模式评级上限为困难" : ""}
               </p>
             </div>
           </header>
@@ -657,6 +671,7 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
               <p>{question.card.sentenceTranslation}</p>
             </div>
           ) : null}
+          {commitError ? <div className="inline-error">{commitError}</div> : null}
         </section>
       ) : null}
 
@@ -687,9 +702,14 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
             <button
               type="button"
               className="primary-button"
+              disabled={committing}
               onClick={() => void commitReview()}
             >
-              {index + 1 >= questions.length ? "完成本轮" : "下一题"}
+              {committing
+                ? "保存中..."
+                : index + 1 >= questions.length
+                  ? "完成本轮"
+                  : "下一题"}
               <ChevronRight size={17} />
             </button>
           </>
