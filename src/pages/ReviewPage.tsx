@@ -108,6 +108,10 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
   }, [hintSlots, hintTyped]);
   const hintComplete =
     hintLetterCount > 0 && hintTyped.length === hintLetterCount;
+  const draftAnswer =
+    question?.mode === "typing" && isHintTyping && !hintFallback
+      ? hintAnswer
+      : answer;
 
   useEffect(() => {
     if (builtKeyRef.current === sessionKey || !settings) {
@@ -604,7 +608,7 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
               type="button"
               className="primary-button wide submit-answer"
               disabled={
-                !answer.trim() ||
+                !draftAnswer.trim() ||
                 (question.mode === "cloze" && !clozeOpen) ||
                 (question.mode === "typing" &&
                   isHintTyping &&
@@ -612,13 +616,7 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
                   !hintComplete)
               }
               onClick={() =>
-                submitAnswer(
-                  question.mode === "typing" &&
-                    isHintTyping &&
-                    !hintFallback
-                    ? hintAnswer
-                    : answer
-                )
+                submitAnswer(draftAnswer)
               }
             >
               提交答案
