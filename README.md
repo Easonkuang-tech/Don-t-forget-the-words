@@ -95,6 +95,10 @@ npm run cloudstudio
 
 完整部署步骤见 [DEPLOY_RAILWAY_SUPABASE.md](DEPLOY_RAILWAY_SUPABASE.md)。
 
+## Microsoft Edge Extension
+
+构建与发布说明见 [extension/README.md](extension/README.md)。
+
 ## 测试
 
 ```bash

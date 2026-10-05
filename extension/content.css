@@ -1,0 +1,19 @@
+.reploop-selection-button {
+  position: fixed;
+  z-index: 2147483647;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border: 1px solid #bdd6cd;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #176b5b;
+  box-shadow: 0 8px 24px rgba(22, 36, 31, 0.2);
+  font: 700 12px/1.2 "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+
+.reploop-selection-button:hover {
+  background: #e8f5f1;
+}
