@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "RepLoop",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "划词查词、加入卡组和快速复习。",
   "minimum_chrome_version": "114",
   "permissions": [

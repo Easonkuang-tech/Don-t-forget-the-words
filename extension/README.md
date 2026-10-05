@@ -23,7 +23,7 @@ extension/dist/
 ## Package for Store
 
 ```powershell
-Compress-Archive -Path "extension\dist\*" -DestinationPath "reploop-edge-extension-0.1.1.zip" -Force
+Compress-Archive -Path "extension\dist\*" -DestinationPath "reploop-edge-extension-0.1.2.zip" -Force
 ```
 
 The ZIP must contain `manifest.json` at its root.
