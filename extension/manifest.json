@@ -1,15 +1,13 @@
 {
   "manifest_version": 3,
   "name": "RepLoop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "划词查词、加入卡组和快速复习。",
   "minimum_chrome_version": "114",
   "permissions": [
     "sidePanel",
     "storage",
-    "contextMenus",
-    "activeTab",
-    "scripting"
+    "contextMenus"
   ],
   "host_permissions": [
     "https://reploop-production.up.railway.app/*",
