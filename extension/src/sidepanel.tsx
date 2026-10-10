@@ -10,6 +10,7 @@ import {
   X
 } from "lucide-react";
 import { REPLOOP_ORIGIN, supabase } from "./supabase";
+import { PronounceRow } from "./PronounceRow";
 import type { Card, Deck, DictionaryEntry, Project } from "./types";
 import "./extension.css";
 
@@ -429,7 +430,7 @@ function SidePanel() {
                 {result.source === "dictionary" ? "词典结果" : "在线翻译"}
               </small>
               <h2>{result.english}</h2>
-              {result.phonetic ? <p>/{result.phonetic}/</p> : null}
+              <PronounceRow word={result.english} phonetic={result.phonetic} />
               <strong>{result.chinese}</strong>
               {result.definition ? <p>{result.definition}</p> : null}
               <select

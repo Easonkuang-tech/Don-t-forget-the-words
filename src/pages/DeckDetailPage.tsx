@@ -10,6 +10,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useMemo, useState } from "react";
 import { EmptyState } from "../components/EmptyState";
 import { Modal } from "../components/Modal";
+import { PronounceRow } from "../components/PronounceRow";
 import { SegmentedControl } from "../components/SegmentedControl";
 import {
   db,
@@ -301,6 +302,12 @@ function CardRow({
           </div>
         ) : null}
       </button>
+      <PronounceRow
+        word={card.english}
+        compact
+        showPhonetic={false}
+        className="card-list-pronounce"
+      />
       <div className="row-actions">
         <button
           type="button"

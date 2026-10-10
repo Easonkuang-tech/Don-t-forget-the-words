@@ -1,5 +1,6 @@
 import express from "express";
 import { existsSync } from "node:fs";
+import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { spawn } from "node:child_process";
@@ -8,6 +9,7 @@ import {
   getDictionaryStatus,
   lookupWord
 } from "./dictionary.mjs";
+import { resolvePronunciation } from "./pronounce.mjs";
 import { translateEnglish } from "./translation.mjs";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -35,6 +37,45 @@ app.get("/api/dictionary/status", (_request, response) => {
 
 app.get("/api/dictionary", (request, response) => {
   response.json(lookupWord(request.query.word));
+});
+
+app.get("/api/pronounce", async (request, response) => {
+  try {
+    response.json(await resolvePronunciation(request.query.word));
+  } catch {
+    response.status(502).json({ error: "发音解析暂时不可用" });
+  }
+});
+
+app.get("/api/pronounce/audio", async (request, response) => {
+  const accent = request.query.accent === "uk" ? "uk" : "us";
+  try {
+    const info = await resolvePronunciation(request.query.word);
+    const audioUrl = info?.[accent]?.audio;
+    if (!audioUrl) {
+      response.status(404).json({ error: "没有可用的录音" });
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5_000);
+    const upstream = await fetch(audioUrl, { signal: controller.signal }).finally(
+      () => clearTimeout(timer)
+    );
+    if (!upstream.ok || !upstream.body) {
+      response.status(404).json({ error: "录音获取失败" });
+      return;
+    }
+
+    response.setHeader(
+      "Content-Type",
+      upstream.headers.get("content-type") ?? "audio/mpeg"
+    );
+    response.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    Readable.fromWeb(upstream.body).pipe(response);
+  } catch {
+    response.status(502).json({ error: "录音获取失败" });
+  }
 });
 
 app.post("/api/translate", async (request, response) => {

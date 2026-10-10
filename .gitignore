@@ -5,10 +5,12 @@ dist/
 .env.local
 RepLoop-cloudstudio.zip
 reploop-edge-extension-*.zip
+reploop-edge-beta-*
 extension/dist/
 extension/dist.crx
 extension/dist.pem
 .supabase/
+supabase/.temp/
 .workbuddy/
 data/*.sqlite
 data/*.sqlite-shm

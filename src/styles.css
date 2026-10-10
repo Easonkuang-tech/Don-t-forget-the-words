@@ -3157,3 +3157,119 @@ p {
     height: 36px;
   }
 }
+
+/* Pronunciation */
+
+.pronounce-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.pronounce-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.pronounce-btn:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-soft);
+}
+
+.pronounce-btn:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.pronounce-btn.is-playing {
+  border-color: var(--blue);
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+.pronounce-accent {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.pronounce-btn.is-playing .pronounce-accent {
+  color: var(--blue);
+}
+
+.pronounce-phonetic {
+  color: #526d80;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.pronounce-icon {
+  flex: none;
+  color: var(--blue);
+}
+
+.pronounce-error {
+  color: var(--red);
+  font-size: 0.75rem;
+}
+
+.pronounce-row.is-compact {
+  gap: 6px;
+  margin-top: 0;
+}
+
+.pronounce-row.is-compact .pronounce-btn {
+  min-height: 26px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+}
+
+.card-list-pronounce {
+  grid-column: 1 / 2;
+  margin-top: 2px;
+}
+
+.hint-pronounce {
+  margin-top: 2px;
+}
+
+.prompt-word {
+  cursor: pointer;
+}
+
+.prompt-word:hover {
+  color: var(--green);
+}
+
+.prompt-word:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+
+@keyframes pronounce-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.pronounce-icon.is-spinning {
+  animation: pronounce-spin 0.9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pronounce-icon.is-spinning {
+    animation: none;
+  }
+}

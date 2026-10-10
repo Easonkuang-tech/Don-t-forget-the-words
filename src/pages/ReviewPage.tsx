@@ -10,8 +10,10 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { EmptyState } from "../components/EmptyState";
 import { MemoryMeter } from "../components/MemoryMeter";
+import { PronounceRow } from "../components/PronounceRow";
 import { matchEnglishAnswer } from "../lib/answer";
 import { createCardLog, db } from "../lib/db";
+import { playPronunciation, stopPronunciation } from "../lib/pronounce";
 import {
   calculateSchedule,
   suggestRating
@@ -73,6 +75,19 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
 
   const isHintTyping =
     request.mode === "typing" && request.typingVariant === "hint";
+
+  const promptWord = question?.card.english ?? "";
+
+  useEffect(() => {
+    return () => stopPronunciation();
+  }, [promptWord]);
+
+  function playPromptWord() {
+    if (!promptWord) {
+      return;
+    }
+    void playPronunciation(promptWord, "us").catch(() => undefined);
+  }
 
   const hintSlots = useMemo(() => {
     if (!question || question.mode !== "typing" || !isHintTyping) {
@@ -454,10 +469,26 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
                     ? "英文词伙"
                     : "英文单词"}
               </span>
-              <h1>{question.card.english}</h1>
-              {question.card.phonetic ? (
-                <p className="phonetic">/{question.card.phonetic}/</p>
-              ) : null}
+              <h1
+                role="button"
+                tabIndex={0}
+                className="prompt-word"
+                title="点击朗读"
+                aria-label={`朗读 ${question.card.english}`}
+                onClick={() => void playPromptWord()}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    void playPromptWord();
+                  }
+                }}
+              >
+                {question.card.english}
+              </h1>
+              <PronounceRow
+                word={question.card.english}
+                fallbackPhonetic={question.card.phonetic}
+              />
             </div>
           )}
         </div>
@@ -538,15 +569,13 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
                 })()}
               </div>
               <div className="hint-typing-info">
-                <p className="hint-word">
-                  {question.card.english}
-                  {question.card.phonetic ? (
-                    <span className="hint-phonetic">
-                      {" "}
-                      /{question.card.phonetic}/
-                    </span>
-                  ) : null}
-                </p>
+                <p className="hint-word">{question.card.english}</p>
+                <PronounceRow
+                  word={question.card.english}
+                  fallbackPhonetic={question.card.phonetic}
+                  compact
+                  className="hint-pronounce"
+                />
                 <p className="hint-meaning">
                   {question.card.definitionZh ||
                     question.card.definitionEn ||

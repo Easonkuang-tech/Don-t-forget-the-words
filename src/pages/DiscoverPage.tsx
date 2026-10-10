@@ -13,6 +13,7 @@ import {
 import { useLiveQuery } from "dexie-react-hooks";
 import { useMemo, useState } from "react";
 import { EmptyState } from "../components/EmptyState";
+import { PronounceRow } from "../components/PronounceRow";
 import { createCard, db } from "../lib/db";
 import {
   detectContentType,
@@ -246,7 +247,10 @@ export function DiscoverPage() {
                   {draft.source === "dictionary" ? "词典结果" : "在线直译"}
                 </span>
                 <h3>{draft.english}</h3>
-                {draft.phonetic ? <small>/{draft.phonetic}/</small> : null}
+                <PronounceRow
+                  word={draft.english}
+                  fallbackPhonetic={draft.phonetic}
+                />
               </div>
             </header>
 

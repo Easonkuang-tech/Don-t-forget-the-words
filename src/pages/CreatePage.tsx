@@ -9,6 +9,7 @@ import {
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useMemo, useState } from "react";
 import { EmptyState } from "../components/EmptyState";
+import { PronounceRow } from "../components/PronounceRow";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { createCard, db } from "../lib/db";
 import {
@@ -416,8 +417,8 @@ function DictionaryCard({ entry }: { entry: DictionaryEntry }) {
     <div className="dictionary-card">
       <div className="dictionary-word">
         <strong>{entry.word}</strong>
-        {entry.phonetic ? <span>/{entry.phonetic}/</span> : null}
       </div>
+      <PronounceRow word={entry.word} fallbackPhonetic={entry.phonetic} />
       {entry.pos ? <span className="part-of-speech">{entry.pos}</span> : null}
       <dl>
         <div>
@@ -675,7 +676,10 @@ function DirectCapture({
                 : "在线翻译"}
           </span>
           <strong>{draft.english}</strong>
-          {draft.phonetic ? <small>/{draft.phonetic}/</small> : null}
+          <PronounceRow
+            word={draft.english}
+            fallbackPhonetic={draft.phonetic}
+          />
           <p>{draft.chinese}</p>
           {draft.target && draft.sentence ? (
             <div className="cloze-preview">

@@ -243,6 +243,58 @@ select {
   animation: spin 0.8s linear infinite;
 }
 
+.pronounce-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 2px;
+}
+
+.pronounce-row button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 2px 9px;
+  border: 1px solid #dde5e0;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #17201d;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.pronounce-row button:hover {
+  border-color: #c8d3cd;
+  background: #f7f9f8;
+}
+
+.pronounce-row button:focus-visible {
+  outline: 2px solid #2b648f;
+  outline-offset: 2px;
+}
+
+.pronounce-row button.is-playing {
+  border-color: #2b648f;
+  background: #e1edf6;
+  color: #2b648f;
+}
+
+.pronounce-accent {
+  color: #66736d;
+  font-weight: 700;
+}
+
+.pronounce-row button.is-playing .pronounce-accent {
+  color: #2b648f;
+}
+
+.pronounce-phonetic {
+  color: #526d80;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
