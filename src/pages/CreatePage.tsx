@@ -18,11 +18,13 @@ import {
   lookupDictionary,
   translateText
 } from "../lib/dictionary";
+import { deckLanguage, languageLabel, languageName } from "../lib/language";
 import type {
   ContentType,
   Deck,
   DictionaryEntry,
   DictionaryLookupResult,
+  LanguageCode,
   Project
 } from "../types";
 
@@ -74,6 +76,8 @@ export function CreatePage() {
   const [saving, setSaving] = useState(false);
 
   const activeDeckId = deckId || decks[0]?.id || "";
+  const activeDeck = decks.find((deck) => deck.id === activeDeckId);
+  const activeLanguage = deckLanguage(activeDeck);
 
   if (!decks.length) {
     return (
@@ -94,7 +98,7 @@ export function CreatePage() {
 
   const saveDraft = async (draft: DraftCard) => {
     if (!draft.english.trim()) {
-      setNotice("英文内容不能为空");
+      setNotice(`${languageLabel(activeLanguage)}内容不能为空`);
       return;
     }
     if (!draft.chinese.trim()) {
@@ -142,7 +146,7 @@ export function CreatePage() {
         options={[
           { value: "word", label: "单词查词" },
           { value: "template", label: "模板批量" },
-          { value: "direct", label: "英文直查" }
+          { value: "direct", label: `${languageLabel(activeLanguage)}直查` }
         ]}
         onChange={(value) => {
           setMode(value);
@@ -174,6 +178,7 @@ export function CreatePage() {
 
       {mode === "word" ? (
         <WordCapture
+          language={activeLanguage}
           saving={saving}
           onSave={(draft) => void saveDraft(draft)}
         />
@@ -181,6 +186,7 @@ export function CreatePage() {
 
       {mode === "template" ? (
         <TemplateCapture
+          language={activeLanguage}
           saving={saving}
           onSave={async (drafts) => {
             if (!drafts.length) {
@@ -218,6 +224,7 @@ export function CreatePage() {
 
       {mode === "direct" ? (
         <DirectCapture
+          language={activeLanguage}
           saving={saving}
           onSave={(draft) => void saveDraft(draft)}
         />
@@ -227,9 +234,11 @@ export function CreatePage() {
 }
 
 function WordCapture({
+  language,
   saving,
   onSave
 }: {
+  language: LanguageCode;
   saving: boolean;
   onSave: (draft: DraftCard) => void;
 }) {
@@ -254,7 +263,7 @@ function WordCapture({
       setLoading(true);
       setError("");
       try {
-        const lookup = await lookupDictionary(trimmed);
+        const lookup = await lookupDictionary(trimmed, language);
         if (active) {
           setResult(lookup);
           setSelectedIndex(0);
@@ -276,7 +285,7 @@ function WordCapture({
       active = false;
       window.clearTimeout(timeout);
     };
-  }, [word]);
+  }, [language, word]);
 
   const entry = result?.entries[selectedIndex];
   const draft = useMemo<DraftCard | null>(() => {
@@ -304,13 +313,17 @@ function WordCapture({
       <div className="capture-title">
         <Search size={19} />
         <div>
-          <h2>输入一个英文单词</h2>
-          <p>系统会从本地 ECDICT 自动补全音标和释义。</p>
+          <h2>输入一个{languageLabel(language)}单词</h2>
+          <p>
+            {language === "fr"
+              ? "系统会从在线词典自动补全 IPA、法语释义和中文翻译。"
+              : "系统会从本地 ECDICT 自动补全音标和释义。"}
+          </p>
         </div>
       </div>
 
       <label className="field">
-        <span>英文单词</span>
+        <span>{languageLabel(language)}单词</span>
         <div className="input-with-status">
           <input
             value={word}
@@ -326,7 +339,7 @@ function WordCapture({
 
       {result && !result.found && word.trim() ? (
         <div className="inline-warning">
-          本地词典没有找到“{word.trim()}”。可以改用模板或英文直查。
+          词典没有找到“{word.trim()}”。可以改用模板或{languageLabel(language)}直查。
         </div>
       ) : null}
 
@@ -350,7 +363,7 @@ function WordCapture({
             </label>
           ) : null}
 
-          <DictionaryCard entry={entry} />
+          <DictionaryCard entry={entry} language={language} />
 
           <label className="field">
             <span>例句（用于挖空题型，可选）</span>
@@ -370,7 +383,9 @@ function WordCapture({
                 setTranslating(true);
                 setError("");
                 try {
-                  setSentenceTranslation(await translateText(sentence.trim()));
+                  setSentenceTranslation(
+                    await translateText(sentence.trim(), language)
+                  );
                 } catch (translationError) {
                   setError(
                     translationError instanceof Error
@@ -412,13 +427,23 @@ function WordCapture({
   );
 }
 
-function DictionaryCard({ entry }: { entry: DictionaryEntry }) {
+function DictionaryCard({
+  entry,
+  language
+}: {
+  entry: DictionaryEntry;
+  language: LanguageCode;
+}) {
   return (
     <div className="dictionary-card">
       <div className="dictionary-word">
         <strong>{entry.word}</strong>
       </div>
-      <PronounceRow word={entry.word} fallbackPhonetic={entry.phonetic} />
+      <PronounceRow
+        word={entry.word}
+        language={language}
+        fallbackPhonetic={entry.phonetic}
+      />
       {entry.pos ? <span className="part-of-speech">{entry.pos}</span> : null}
       <dl>
         <div>
@@ -427,7 +452,7 @@ function DictionaryCard({ entry }: { entry: DictionaryEntry }) {
         </div>
         {entry.definition ? (
           <div>
-            <dt>English</dt>
+            <dt>{languageName(language)}</dt>
             <dd>{entry.definition}</dd>
           </div>
         ) : null}
@@ -437,9 +462,11 @@ function DictionaryCard({ entry }: { entry: DictionaryEntry }) {
 }
 
 function TemplateCapture({
+  language,
   saving,
   onSave
 }: {
+  language: LanguageCode;
   saving: boolean;
   onSave: (drafts: DraftCard[]) => Promise<void>;
 }) {
@@ -470,7 +497,9 @@ function TemplateCapture({
         <FileText size={19} />
         <div>
           <h2>模板批量录入</h2>
-          <p>每行使用“英文 | 中文”，适合粘贴现有材料。</p>
+          <p>
+            每行使用“{languageLabel(language)} | 中文”，适合粘贴现有材料。
+          </p>
         </div>
       </div>
 
@@ -557,9 +586,11 @@ function TemplateCapture({
 }
 
 function DirectCapture({
+  language,
   saving,
   onSave
 }: {
+  language: LanguageCode;
   saving: boolean;
   onSave: (draft: DraftCard) => void;
 }) {
@@ -581,7 +612,7 @@ function DirectCapture({
 
     try {
       const contentType = detectContentType(english);
-      const lookup = await lookupDictionary(english);
+      const lookup = await lookupDictionary(english, language);
 
       if (contentType !== "sentence" && lookup.found && lookup.entries[0]) {
         const entry = lookup.entries[0];
@@ -600,7 +631,7 @@ function DirectCapture({
         return;
       }
 
-      const translation = await translateText(english);
+      const translation = await translateText(english, language);
       setDraft({
         ...emptyDraft,
         contentType,
@@ -625,13 +656,13 @@ function DirectCapture({
       <div className="capture-title">
         <BookOpenCheck size={19} />
         <div>
-          <h2>输入英文直接查询</h2>
+          <h2>输入{languageLabel(language)}直接查询</h2>
           <p>单词优先查词典；词伙和句子调用在线直译。</p>
         </div>
       </div>
 
       <label className="field">
-        <span>英文内容</span>
+        <span>{languageLabel(language)}内容</span>
         <textarea
           value={text}
           onChange={(event) => setText(event.target.value)}
@@ -678,6 +709,7 @@ function DirectCapture({
           <strong>{draft.english}</strong>
           <PronounceRow
             word={draft.english}
+            language={language}
             fallbackPhonetic={draft.phonetic}
           />
           <p>{draft.chinese}</p>

@@ -1,4 +1,5 @@
 const API_BASE = "https://api.dictionaryapi.dev/api/v2/entries/en";
+const FRENCH_API_BASE = "https://freedictionaryapi.com/api/v1/entries/fr";
 const REQUEST_TIMEOUT_MS = 6_000;
 const HIT_TTL_MS = 7 * 24 * 60 * 60 * 1_000;
 const MISS_TTL_MS = 6 * 60 * 60 * 1_000;
@@ -87,6 +88,25 @@ export function parsePronunciation(payload) {
   return result;
 }
 
+export function parseFrenchPronunciation(payload) {
+  const entries = Array.isArray(payload?.entries) ? payload.entries : [];
+  const french = entries.find(
+    (entry) => entry?.language?.code === "fr" || !entry?.language
+  );
+  const list = Array.isArray(french?.pronunciations)
+    ? french.pronunciations
+    : [];
+  const ipa = list.find(
+    (item) => item?.type === "ipa" && typeof item.text === "string"
+  );
+  return {
+    fr: {
+      phonetic: ipa?.text?.trim() ?? "",
+      audio: ""
+    }
+  };
+}
+
 async function requestPronunciation(word) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -106,23 +126,58 @@ async function requestPronunciation(word) {
   }
 }
 
-export async function resolvePronunciation(input) {
+async function requestFrenchPronunciation(word) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(
+      `${FRENCH_API_BASE}/${encodeURIComponent(word)}`,
+      { signal: controller.signal, headers: { accept: "application/json" } }
+    );
+    if (!response.ok) {
+      return null;
+    }
+    return await response.json();
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function resolvePronunciation(input, languageInput = "en") {
   const word = String(input ?? "").trim();
   if (!word || word.includes(" ")) {
     return { word, uk: { phonetic: "", audio: "" }, us: { phonetic: "", audio: "" } };
   }
 
-  const key = word.toLowerCase();
+  const language = languageInput === "fr" ? "fr" : "en";
+  const key = `${language}:${word.toLocaleLowerCase(language)}`;
   const now = Date.now();
   const hit = cache.get(key);
   if (hit && now - hit.at < (hit.data ? HIT_TTL_MS : MISS_TTL_MS)) {
     return hit.data ?? { word, uk: { phonetic: "", audio: "" }, us: { phonetic: "", audio: "" } };
   }
 
-  const payload = await requestPronunciation(word);
-  const parsed = payload ? parsePronunciation(payload) : null;
+  const payload =
+    language === "fr"
+      ? await requestFrenchPronunciation(word)
+      : await requestPronunciation(word);
+  const parsed =
+    language === "fr"
+      ? payload
+        ? parseFrenchPronunciation(payload)
+        : null
+      : payload
+        ? parsePronunciation(payload)
+        : null;
   const data =
-    parsed && (parsed.uk.audio || parsed.us.audio || parsed.uk.phonetic || parsed.us.phonetic)
+    parsed &&
+    (parsed.uk?.audio ||
+      parsed.us?.audio ||
+      parsed.uk?.phonetic ||
+      parsed.us?.phonetic ||
+      parsed.fr?.phonetic)
       ? { word, ...parsed }
       : null;
 

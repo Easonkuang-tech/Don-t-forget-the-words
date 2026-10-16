@@ -1,4 +1,5 @@
 export type ContentType = "word" | "phrase" | "sentence";
+export type LanguageCode = "en" | "fr";
 export type ReviewMode = "cloze" | "typing" | "choice";
 export type SessionMode = ReviewMode | "mixed";
 export type ReviewScope = "focused" | "random";
@@ -23,6 +24,7 @@ export interface Deck {
   id: string;
   projectId: string;
   name: string;
+  language?: LanguageCode;
   createdAt: number;
   updatedAt: number;
   position: number;

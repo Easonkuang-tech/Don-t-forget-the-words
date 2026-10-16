@@ -17,6 +17,7 @@ import "./extension.css";
 type Tab = "lookup" | "review" | "account";
 
 interface LookupResult {
+  language: "en" | "fr";
   english: string;
   chinese: string;
   phonetic: string;
@@ -36,16 +37,20 @@ function normalize(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9']/g, "");
 }
 
-async function lookup(text: string): Promise<LookupResult> {
+async function lookup(
+  text: string,
+  language: "en" | "fr" = "en"
+): Promise<LookupResult> {
   const query = text.trim();
   try {
     const dictionary = await fetch(
-      `${REPLOOP_ORIGIN}/api/dictionary?word=${encodeURIComponent(query)}`
+      `${REPLOOP_ORIGIN}/api/dictionary?word=${encodeURIComponent(query)}&language=${language}`
     ).then((response) => response.json());
 
     if (dictionary.found && dictionary.entries?.[0]) {
       const entry = dictionary.entries[0] as DictionaryEntry;
       return {
+        language,
         english: entry.word,
         chinese: entry.translation || entry.definition,
         phonetic: entry.phonetic,
@@ -61,13 +66,14 @@ async function lookup(text: string): Promise<LookupResult> {
   const response = await fetch(`${REPLOOP_ORIGIN}/api/translate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text: query })
+    body: JSON.stringify({ text: query, language })
   });
   const data = await response.json();
   if (!response.ok) {
     throw new Error(data.error || "查询失败");
   }
   return {
+    language,
     english: query,
     chinese: data.text,
     phonetic: "",
@@ -108,7 +114,7 @@ function SidePanel() {
         .order("position"),
       supabase
         .from("decks")
-        .select("id,project_id,name,position")
+        .select("*")
         .eq("user_id", nextUserId)
         .order("position"),
       supabase
@@ -176,7 +182,11 @@ function SidePanel() {
     setLoading(true);
     setMessage("");
     try {
-      setResult(await lookup(text));
+      const language =
+        decks.find((deck) => deck.id === deckId)?.language === "fr"
+          ? "fr"
+          : "en";
+      setResult(await lookup(text, language));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "查询失败");
     } finally {
@@ -430,7 +440,11 @@ function SidePanel() {
                 {result.source === "dictionary" ? "词典结果" : "在线翻译"}
               </small>
               <h2>{result.english}</h2>
-              <PronounceRow word={result.english} phonetic={result.phonetic} />
+              <PronounceRow
+                word={result.english}
+                language={result.language}
+                phonetic={result.phonetic}
+              />
               <strong>{result.chinese}</strong>
               {result.definition ? <p>{result.definition}</p> : null}
               <select

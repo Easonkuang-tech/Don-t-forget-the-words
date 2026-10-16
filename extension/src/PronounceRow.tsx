@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Volume2 } from "lucide-react";
 import { REPLOOP_ORIGIN } from "./supabase";
 
-type Accent = "uk" | "us";
+type Accent = "uk" | "us" | "fr";
+type LanguageCode = "en" | "fr";
 
 interface AccentInfo {
   phonetic: string;
@@ -10,13 +11,17 @@ interface AccentInfo {
 }
 
 interface Pronunciation {
-  uk: AccentInfo;
-  us: AccentInfo;
+  uk?: AccentInfo;
+  us?: AccentInfo;
+  fr?: AccentInfo;
 }
 
-const ACCENTS: { key: Accent; label: string; lang: string }[] = [
+const ENGLISH_ACCENTS: { key: Accent; label: string; lang: string }[] = [
   { key: "uk", label: "英", lang: "en-GB" },
   { key: "us", label: "美", lang: "en-US" }
+];
+const FRENCH_ACCENTS: { key: Accent; label: string; lang: string }[] = [
+  { key: "fr", label: "法", lang: "fr-FR" }
 ];
 
 const cache = new Map<string, Pronunciation | null>();
@@ -24,18 +29,26 @@ const verified = new Map<string, boolean>();
 
 const VERIFY_TIMEOUT_MS = 3_000;
 
-function recordingKey(word: string, accent: Accent): string {
-  return `${word.trim().toLowerCase()}:${accent}`;
+function recordingKey(
+  word: string,
+  accent: Accent,
+  language: LanguageCode
+): string {
+  return `${language}:${word.trim().toLocaleLowerCase(language)}:${accent}`;
 }
 
-async function verifyRecording(word: string, accent: Accent): Promise<boolean> {
+async function verifyRecording(
+  word: string,
+  accent: Accent,
+  language: LanguageCode
+): Promise<boolean> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), VERIFY_TIMEOUT_MS);
   try {
     const response = await fetch(
       `${REPLOOP_ORIGIN}/api/pronounce/audio?word=${encodeURIComponent(
         word.trim()
-      )}&accent=${accent}`,
+      )}&accent=${accent}&language=${language}`,
       { signal: controller.signal }
     );
     if (response.body) {
@@ -49,14 +62,18 @@ async function verifyRecording(word: string, accent: Accent): Promise<boolean> {
   }
 }
 
-function refreshVerification(word: string, info: Pronunciation | null): void {
+function refreshVerification(
+  word: string,
+  language: LanguageCode,
+  info: Pronunciation | null
+): void {
   if (!info || !isSingleWord(word)) {
     return;
   }
-  for (const item of ACCENTS) {
+  for (const item of language === "fr" ? FRENCH_ACCENTS : ENGLISH_ACCENTS) {
     if (info[item.key]?.audio) {
-      void verifyRecording(word, item.key).then((ok) => {
-        verified.set(recordingKey(word, item.key), ok);
+      void verifyRecording(word, item.key, language).then((ok) => {
+        verified.set(recordingKey(word, item.key, language), ok);
       });
     }
   }
@@ -68,11 +85,14 @@ function formatPhonetic(value: string): string {
 }
 
 function isSingleWord(text: string): boolean {
-  return /^[A-Za-z][A-Za-z'’-]*$/.test(text.trim());
+  return /^[\p{L}][\p{L}'’-]*$/u.test(text.trim());
 }
 
-async function resolve(word: string): Promise<Pronunciation | null> {
-  const key = word.trim().toLowerCase();
+async function resolve(
+  word: string,
+  language: LanguageCode
+): Promise<Pronunciation | null> {
+  const key = `${language}:${word.trim().toLocaleLowerCase(language)}`;
   const cached = cache.get(key);
   if (cached !== undefined) {
     return cached;
@@ -83,14 +103,22 @@ async function resolve(word: string): Promise<Pronunciation | null> {
   }
   try {
     const response = await fetch(
-      `${REPLOOP_ORIGIN}/api/pronounce?word=${encodeURIComponent(word.trim())}`
+      `${REPLOOP_ORIGIN}/api/pronounce?word=${encodeURIComponent(
+        word.trim()
+      )}&language=${language}`
     );
     if (!response.ok) {
       throw new Error("resolve failed");
     }
     const data = (await response.json()) as Pronunciation;
     const usable =
-      data && (data.uk?.audio || data.us?.audio || data.uk?.phonetic || data.us?.phonetic)
+      data &&
+      (data.uk?.audio ||
+        data.us?.audio ||
+        data.uk?.phonetic ||
+        data.us?.phonetic ||
+        data.fr?.phonetic ||
+        data.fr?.audio)
         ? data
         : null;
     cache.set(key, usable);
@@ -137,10 +165,15 @@ function playAudio(url: string): Promise<void> {
 
 interface PronounceRowProps {
   word: string;
+  language?: LanguageCode;
   phonetic?: string;
 }
 
-export function PronounceRow({ word, phonetic = "" }: PronounceRowProps) {
+export function PronounceRow({
+  word,
+  language = "en",
+  phonetic = ""
+}: PronounceRowProps) {
   const [info, setInfo] = useState<Pronunciation | null>(null);
   const [playing, setPlaying] = useState<Accent | null>(null);
 
@@ -148,16 +181,16 @@ export function PronounceRow({ word, phonetic = "" }: PronounceRowProps) {
     let cancelled = false;
     setInfo(null);
     setPlaying(null);
-    void resolve(word).then((data) => {
+    void resolve(word, language).then((data) => {
       if (!cancelled) {
         setInfo(data);
-        refreshVerification(word, data);
+        refreshVerification(word, language, data);
       }
     });
     return () => {
       cancelled = true;
     };
-  }, [word]);
+  }, [language, word]);
 
   async function play(accent: Accent, lang: string) {
     if (playing === accent) {
@@ -171,7 +204,7 @@ export function PronounceRow({ word, phonetic = "" }: PronounceRowProps) {
       const usable =
         Boolean(recorded) &&
         isSingleWord(word) &&
-        verified.get(recordingKey(word, accent)) === true;
+        verified.get(recordingKey(word, accent, language)) === true;
       if (usable) {
         await playAudio(
           `${REPLOOP_ORIGIN}/api/pronounce/audio?word=${encodeURIComponent(
@@ -181,8 +214,8 @@ export function PronounceRow({ word, phonetic = "" }: PronounceRowProps) {
       } else {
         await speak(word.trim(), lang);
         if (recorded && isSingleWord(word)) {
-          void verifyRecording(word, accent).then((ok) => {
-            verified.set(recordingKey(word, accent), ok);
+          void verifyRecording(word, accent, language).then((ok) => {
+            verified.set(recordingKey(word, accent, language), ok);
           });
         }
       }
@@ -195,9 +228,12 @@ export function PronounceRow({ word, phonetic = "" }: PronounceRowProps) {
 
   return (
     <div className="pronounce-row">
-      {ACCENTS.map((item) => {
+      {(language === "fr" ? FRENCH_ACCENTS : ENGLISH_ACCENTS).map((item) => {
         const label = formatPhonetic(
-          info?.[item.key]?.phonetic || (item.key === "uk" ? phonetic : "")
+          info?.[item.key]?.phonetic ||
+            (item.key === "uk" || (item.key === "fr" && language === "fr")
+              ? phonetic
+              : "")
         );
         return (
           <button

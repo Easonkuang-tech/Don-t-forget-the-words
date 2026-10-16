@@ -4,10 +4,19 @@ function normalizeText(value) {
   return String(value ?? "").trim().replace(/\s+/g, " ");
 }
 
-async function requestMyMemory(text) {
+const LANGUAGE_PAIRS = {
+  en: "en|zh-CN",
+  fr: "fr|zh-CN"
+};
+
+function sourceLanguage(value) {
+  return value === "fr" ? "fr" : "en";
+}
+
+async function requestMyMemory(text, language) {
   const url = new URL("https://api.mymemory.translated.net/get");
   url.searchParams.set("q", text);
-  url.searchParams.set("langpair", "en|zh-CN");
+  url.searchParams.set("langpair", LANGUAGE_PAIRS[language]);
 
   const response = await fetch(url, {
     headers: {
@@ -29,10 +38,10 @@ async function requestMyMemory(text) {
   return translated;
 }
 
-async function requestGoogleFallback(text) {
+async function requestGoogleFallback(text, language) {
   const url = new URL("https://translate.googleapis.com/translate_a/single");
   url.searchParams.set("client", "gtx");
-  url.searchParams.set("sl", "en");
+  url.searchParams.set("sl", language);
   url.searchParams.set("tl", "zh-CN");
   url.searchParams.set("dt", "t");
   url.searchParams.set("q", text);
@@ -60,7 +69,8 @@ async function requestGoogleFallback(text) {
   return translated;
 }
 
-export async function translateEnglish(text) {
+export async function translateLanguage(text, languageInput = "en") {
+  const language = sourceLanguage(languageInput);
   const normalized = normalizeText(text);
   if (!normalized) {
     throw new Error("没有可以翻译的内容");
@@ -69,7 +79,7 @@ export async function translateEnglish(text) {
     throw new Error("单次翻译最多支持 2000 个字符");
   }
 
-  const cacheKey = normalized.toLocaleLowerCase("en");
+  const cacheKey = `${language}:${normalized.toLocaleLowerCase(language)}`;
   if (translationCache.has(cacheKey)) {
     return {
       text: translationCache.get(cacheKey),
@@ -81,14 +91,28 @@ export async function translateEnglish(text) {
   let translated;
   let provider;
 
-  try {
-    translated = await requestMyMemory(normalized);
-    provider = "MyMemory";
-  } catch {
-    translated = await requestGoogleFallback(normalized);
-    provider = "Google public endpoint";
+  if (language === "fr") {
+    try {
+      translated = await requestGoogleFallback(normalized, language);
+      provider = "Google public endpoint";
+    } catch {
+      translated = await requestMyMemory(normalized, language);
+      provider = "MyMemory";
+    }
+  } else {
+    try {
+      translated = await requestMyMemory(normalized, language);
+      provider = "MyMemory";
+    } catch {
+      translated = await requestGoogleFallback(normalized, language);
+      provider = "Google public endpoint";
+    }
   }
 
   translationCache.set(cacheKey, translated);
   return { text: translated, provider, cached: false };
+}
+
+export async function translateEnglish(text) {
+  return translateLanguage(text, "en");
 }

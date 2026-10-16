@@ -13,7 +13,12 @@ import { MemoryMeter } from "../components/MemoryMeter";
 import { PronounceRow } from "../components/PronounceRow";
 import { matchEnglishAnswer } from "../lib/answer";
 import { createCardLog, db } from "../lib/db";
-import { playPronunciation, stopPronunciation } from "../lib/pronounce";
+import { deckLanguage, languageLabel } from "../lib/language";
+import {
+  defaultAccent,
+  playPronunciation,
+  stopPronunciation
+} from "../lib/pronounce";
 import {
   calculateSchedule,
   suggestRating
@@ -71,6 +76,11 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
   const builtKeyRef = useRef("");
 
   const question = questions[index];
+  const currentDeck = useLiveQuery(
+    () => (question ? db.decks.get(question.card.deckId) : undefined),
+    [question?.card.deckId]
+  );
+  const learningLanguage = deckLanguage(currentDeck);
   const timer = useResponseTimer(Boolean(question) && !result, question?.id ?? "idle");
 
   const isHintTyping =
@@ -86,7 +96,9 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
     if (!promptWord) {
       return;
     }
-    void playPronunciation(promptWord, "us").catch(() => undefined);
+    void playPronunciation(promptWord, defaultAccent(learningLanguage), {
+      language: learningLanguage
+    }).catch(() => undefined);
   }
 
   const hintSlots = useMemo(() => {
@@ -434,7 +446,7 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
                       submitAnswer(answer);
                     }
                   }}
-                  aria-label="填写缺失的英文"
+                  aria-label={`填写缺失的${languageLabel(learningLanguage)}`}
                   size={Math.max(7, question.cloze.target.length)}
                 />
               ) : (
@@ -464,10 +476,10 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
             <div className="english-prompt">
               <span className="prompt-kind">
                 {question.card.contentType === "sentence"
-                  ? "英文句子"
+                  ? `${languageLabel(learningLanguage)}句子`
                   : question.card.contentType === "phrase"
-                    ? "英文词伙"
-                    : "英文单词"}
+                    ? `${languageLabel(learningLanguage)}词伙`
+                    : `${languageLabel(learningLanguage)}单词`}
               </span>
               <h1
                 role="button"
@@ -487,6 +499,7 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
               </h1>
               <PronounceRow
                 word={question.card.english}
+                language={learningLanguage}
                 fallbackPhonetic={question.card.phonetic}
               />
             </div>
@@ -517,7 +530,7 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
                 autoComplete="off"
                 autoCorrect="off"
                 spellCheck={false}
-                aria-label="逐字母输入英文"
+                aria-label={`逐字母输入${languageLabel(learningLanguage)}`}
                 onChange={(event) => {
                   markFirstInput();
                   const letters = Array.from(event.target.value)
@@ -572,6 +585,7 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
                 <p className="hint-word">{question.card.english}</p>
                 <PronounceRow
                   word={question.card.english}
+                  language={learningLanguage}
                   fallbackPhonetic={question.card.phonetic}
                   compact
                   className="hint-pronounce"
@@ -587,8 +601,8 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
             <div className="typing-answer">
               <label htmlFor="meaning-answer">
                 {isHintTyping
-                  ? "默写对应的英文（内容较长，使用普通输入）"
-                  : "默写对应的英文"}
+                  ? `默写对应的${languageLabel(learningLanguage)}（内容较长，使用普通输入）`
+                  : `默写对应的${languageLabel(learningLanguage)}`}
               </label>
               <input
                 id="meaning-answer"
@@ -606,7 +620,7 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
                     submitAnswer(answer);
                   }
                 }}
-                placeholder="输入英文单词或词伙"
+                placeholder={`输入${languageLabel(learningLanguage)}单词或词伙`}
               />
             </div>
           ) : null}

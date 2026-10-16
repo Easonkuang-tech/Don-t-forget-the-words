@@ -4,11 +4,13 @@ import type {
   AppSettings,
   Card,
   Deck,
+  LanguageCode,
   Project,
   ReviewLog,
   ReviewSnapshot
 } from "../types";
 import { DEFAULT_SETTINGS } from "./constants";
+import { resolveLanguage } from "./language";
 import {
   applyCloudReview,
   clearCloudData,
@@ -163,7 +165,7 @@ export async function activateCloudUser(userId: string): Promise<void> {
   if (!snapshotHasUserData(remoteSnapshot)) {
     const localSnapshot = await readLocalSnapshot();
     if (snapshotHasUserData(localSnapshot) && !lastUserId) {
-      await importCloudSnapshot(localSnapshot, true);
+      await importCloudSnapshot(userId, localSnapshot, true);
     } else if (!snapshotHasUserData(localSnapshot)) {
       await seedCloudUser(userId);
     }
@@ -228,6 +230,7 @@ export async function initializeDatabase(): Promise<void> {
         id: deckId,
         projectId,
         name: "默认卡组",
+        language: "en",
         createdAt: now,
         updatedAt: now,
         position: 0
@@ -256,7 +259,8 @@ export async function createProject(name: string): Promise<Project> {
 
 export async function createDeck(
   projectId: string,
-  name: string
+  name: string,
+  language: LanguageCode = "en"
 ): Promise<Deck> {
   const now = Date.now();
   const count = await db.decks.where("projectId").equals(projectId).count();
@@ -264,6 +268,7 @@ export async function createDeck(
     id: identifier("deck"),
     projectId,
     name: name.trim() || "未命名卡组",
+    language: resolveLanguage(language),
     createdAt: now,
     updatedAt: now,
     position: count
@@ -295,6 +300,26 @@ export async function renameProject(id: string, name: string): Promise<void> {
 export async function renameDeck(id: string, name: string): Promise<void> {
   const changes = {
     name: name.trim() || "未命名卡组",
+    updatedAt: Date.now()
+  };
+  if (activeCloudUserId) {
+    const deck = await db.decks.get(id);
+    if (deck) {
+      await upsertCloudDeck(activeCloudUserId, {
+        ...deck,
+        ...changes
+      });
+    }
+  }
+  await db.decks.update(id, changes);
+}
+
+export async function updateDeckLanguage(
+  id: string,
+  language: LanguageCode
+): Promise<void> {
+  const changes = {
+    language: resolveLanguage(language),
     updatedAt: Date.now()
   };
   if (activeCloudUserId) {
@@ -515,7 +540,7 @@ export async function importSnapshot(
   }
 
   if (activeCloudUserId) {
-    await importCloudSnapshot(value, strategy === "replace");
+    await importCloudSnapshot(activeCloudUserId, value, strategy === "replace");
     await syncCloudToLocal(activeCloudUserId);
     return;
   }

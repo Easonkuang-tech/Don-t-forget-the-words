@@ -80,7 +80,7 @@ export function ProfilePage({
         Notification.permission === "granted"
       ) {
         new Notification("今日复习时间", {
-          body: "打开 RepLoop，完成今天到期的英语卡片。",
+          body: "打开 RepLoop，完成今天到期的卡片。",
           tag: "english-memory-daily"
         });
         localStorage.setItem(storageKey, "1");

@@ -1,7 +1,8 @@
 import type {
   ContentType,
   DictionaryEntry,
-  DictionaryLookupResult
+  DictionaryLookupResult,
+  LanguageCode
 } from "../types";
 
 const PUBLIC_TRANSLATION_ENDPOINT =
@@ -40,10 +41,17 @@ async function readJsonResponse(response: Response): Promise<unknown> {
   return response.json();
 }
 
-async function translateWithPublicService(text: string): Promise<string> {
+function translationPair(language: LanguageCode): string {
+  return language === "fr" ? "fr|zh-CN" : "en|zh-CN";
+}
+
+async function translateWithPublicService(
+  text: string,
+  language: LanguageCode
+): Promise<string> {
   const url = new URL(PUBLIC_TRANSLATION_ENDPOINT);
   url.searchParams.set("q", text);
-  url.searchParams.set("langpair", "en|zh-CN");
+  url.searchParams.set("langpair", translationPair(language));
 
   const response = await fetchWithTimeout(url);
   const data = (await readJsonResponse(response)) as {
@@ -83,12 +91,13 @@ export function firstMeaning(entry: DictionaryEntry): string {
 }
 
 export async function lookupDictionary(
-  word: string
+  word: string,
+  language: LanguageCode = "en"
 ): Promise<DictionaryLookupResult> {
   const normalized = word.trim();
   try {
     const response = await fetchWithTimeout(
-      `/api/dictionary?word=${encodeURIComponent(normalized)}`
+      `/api/dictionary?word=${encodeURIComponent(normalized)}&language=${language}`
     );
     const result = (await readJsonResponse(
       response
@@ -102,7 +111,7 @@ export async function lookupDictionary(
 
   if (!normalized.includes(" ")) {
     try {
-      const translation = await translateWithPublicService(normalized);
+      const translation = await translateWithPublicService(normalized, language);
       return {
         found: true,
         query: normalized,
@@ -135,13 +144,16 @@ export async function lookupDictionary(
   };
 }
 
-export async function translateText(text: string): Promise<string> {
+export async function translateText(
+  text: string,
+  language: LanguageCode = "en"
+): Promise<string> {
   const normalized = text.trim();
   try {
     const response = await fetchWithTimeout("/api/translate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: normalized })
+      body: JSON.stringify({ text: normalized, language })
     });
     const data = (await readJsonResponse(response)) as { text?: string };
     if (data.text) {
@@ -152,7 +164,7 @@ export async function translateText(text: string): Promise<string> {
   }
 
   try {
-    return await translateWithPublicService(normalized);
+    return await translateWithPublicService(normalized, language);
   } catch {
     throw new Error("在线翻译暂时不可用，请稍后重试或手动填写中文");
   }

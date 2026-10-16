@@ -20,6 +20,7 @@ import {
   lookupDictionary,
   translateText
 } from "../lib/dictionary";
+import { deckLanguage, languageName } from "../lib/language";
 import type {
   Card,
   ContentType,
@@ -66,6 +67,12 @@ export function DiscoverPage() {
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
   const activeDeckId = deckId || decks[0]?.id || "";
+  const activeDeck = decks.find((deck) => deck.id === activeDeckId);
+  const activeLanguage = deckLanguage(activeDeck);
+  const deckLanguages = useMemo(
+    () => new Map(decks.map((deck) => [deck.id, deckLanguage(deck)])),
+    [decks]
+  );
 
   const existingCard = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("en");
@@ -74,10 +81,12 @@ export function DiscoverPage() {
     }
     return (
       cards.find(
-        (card) => card.english.trim().toLocaleLowerCase("en") === normalized
+        (card) =>
+          card.english.trim().toLocaleLowerCase(activeLanguage) === normalized &&
+          deckLanguages.get(card.deckId) === activeLanguage
       ) ?? null
     );
-  }, [cards, query]);
+  }, [activeLanguage, cards, deckLanguages, query]);
 
   const existingDeck = existingCard
     ? decks.find((deck) => deck.id === existingCard.deckId)
@@ -95,7 +104,7 @@ export function DiscoverPage() {
 
     try {
       const contentType = detectContentType(value);
-      const dictionary = await lookupDictionary(value);
+      const dictionary = await lookupDictionary(value, activeLanguage);
 
       if (
         contentType !== "sentence" &&
@@ -116,7 +125,7 @@ export function DiscoverPage() {
         return;
       }
 
-      const translation = await translateText(value);
+      const translation = await translateText(value, activeLanguage);
       setDraft({
         contentType,
         english: value,
@@ -206,7 +215,7 @@ export function DiscoverPage() {
                 void search();
               }
             }}
-            placeholder="搜索单词、词伙或英文句子"
+            placeholder={`搜索单词、词伙或${languageName(activeLanguage)}句子`}
           />
           <button
             type="button"
@@ -249,6 +258,7 @@ export function DiscoverPage() {
                 <h3>{draft.english}</h3>
                 <PronounceRow
                   word={draft.english}
+                  language={activeLanguage}
                   fallbackPhonetic={draft.phonetic}
                 />
               </div>
@@ -261,7 +271,7 @@ export function DiscoverPage() {
               </div>
               {draft.definitionEn ? (
                 <div>
-                  <dt>English</dt>
+                  <dt>{languageName(activeLanguage)}</dt>
                   <dd>{draft.definitionEn}</dd>
                 </div>
               ) : null}

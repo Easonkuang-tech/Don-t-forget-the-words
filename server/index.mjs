@@ -9,8 +9,9 @@ import {
   getDictionaryStatus,
   lookupWord
 } from "./dictionary.mjs";
+import { lookupFrench } from "./french.mjs";
 import { resolvePronunciation } from "./pronounce.mjs";
-import { translateEnglish } from "./translation.mjs";
+import { translateLanguage } from "./translation.mjs";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(currentDir, "..");
@@ -36,12 +37,23 @@ app.get("/api/dictionary/status", (_request, response) => {
 });
 
 app.get("/api/dictionary", (request, response) => {
+  if (request.query.language === "fr") {
+    void lookupFrench(request.query.word)
+      .then((result) => response.json(result))
+      .catch(() => response.status(502).json({ error: "法语词典暂时不可用" }));
+    return;
+  }
   response.json(lookupWord(request.query.word));
 });
 
 app.get("/api/pronounce", async (request, response) => {
   try {
-    response.json(await resolvePronunciation(request.query.word));
+    response.json(
+      await resolvePronunciation(
+        request.query.word,
+        request.query.language === "fr" ? "fr" : "en"
+      )
+    );
   } catch {
     response.status(502).json({ error: "发音解析暂时不可用" });
   }
@@ -50,7 +62,10 @@ app.get("/api/pronounce", async (request, response) => {
 app.get("/api/pronounce/audio", async (request, response) => {
   const accent = request.query.accent === "uk" ? "uk" : "us";
   try {
-    const info = await resolvePronunciation(request.query.word);
+    const info = await resolvePronunciation(
+      request.query.word,
+      request.query.language === "fr" ? "fr" : "en"
+    );
     const audioUrl = info?.[accent]?.audio;
     if (!audioUrl) {
       response.status(404).json({ error: "没有可用的录音" });
@@ -80,7 +95,10 @@ app.get("/api/pronounce/audio", async (request, response) => {
 
 app.post("/api/translate", async (request, response) => {
   try {
-    const result = await translateEnglish(request.body?.text);
+    const result = await translateLanguage(
+      request.body?.text,
+      request.body?.language === "fr" ? "fr" : "en"
+    );
     response.json(result);
   } catch (error) {
     response.status(502).json({
@@ -156,7 +174,7 @@ async function start() {
       ? "localhost"
       : host;
   const url = `http://${displayHost}:${port}`;
-  console.log(`英语记忆网站已启动：${url}`);
+  console.log(`记忆网站已启动：${url}`);
   console.log(`数据目录：${process.env.DATA_DIR ?? path.join(rootDir, "data")}`);
 
   if (shouldOpen) {

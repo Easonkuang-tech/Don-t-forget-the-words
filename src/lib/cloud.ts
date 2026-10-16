@@ -8,6 +8,7 @@ import type {
   ReviewSnapshot
 } from "../types";
 import { DEFAULT_SETTINGS } from "./constants";
+import { resolveLanguage } from "./language";
 import { requireSupabase } from "./supabase";
 
 const TABLES = [
@@ -44,6 +45,7 @@ function deckRow(userId: string, deck: Deck): UnknownRow {
     id: deck.id,
     project_id: deck.projectId,
     name: deck.name,
+    language: resolveLanguage(deck.language),
     created_at: deck.createdAt,
     updated_at: deck.updatedAt,
     position: deck.position
@@ -128,6 +130,7 @@ function fromDeckRow(row: UnknownRow): Deck {
     id: String(row.id),
     projectId: String(row.project_id),
     name: String(row.name),
+    language: resolveLanguage(row.language),
     createdAt: Number(row.created_at),
     updatedAt: Number(row.updated_at),
     position: Number(row.position ?? 0)
@@ -244,9 +247,22 @@ export async function upsertCloudDeck(
   userId: string,
   deck: Deck
 ): Promise<void> {
+  const row = deckRow(userId, deck);
   const result = await requireSupabase()
     .from("decks")
-    .upsert(deckRow(userId, deck), { onConflict: "user_id,id" });
+    .upsert(row, { onConflict: "user_id,id" });
+  if (
+    result.error &&
+    String(result.error.message ?? "").toLowerCase().includes("language")
+  ) {
+    const legacyRow = { ...row };
+    delete legacyRow.language;
+    const legacy = await requireSupabase()
+      .from("decks")
+      .upsert(legacyRow, { onConflict: "user_id,id" });
+    expectData(true, legacy.error);
+    return;
+  }
   expectData(true, result.error);
 }
 
@@ -318,6 +334,7 @@ export async function applyCloudReview(
 }
 
 export async function importCloudSnapshot(
+  userId: string,
   snapshot: ReviewSnapshot,
   replace: boolean
 ): Promise<void> {
@@ -326,6 +343,9 @@ export async function importCloudSnapshot(
     p_replace: replace
   });
   expectData(true, result.error);
+  await Promise.all(
+    snapshot.decks.map((deck) => upsertCloudDeck(userId, deck))
+  );
 }
 
 export async function clearCloudData(): Promise<void> {

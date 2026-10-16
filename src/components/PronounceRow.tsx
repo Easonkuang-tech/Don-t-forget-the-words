@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { LoaderCircle, Volume2 } from "lucide-react";
 import {
-  ACCENTS,
   ACCENT_LABEL,
+  accentsForLanguage,
   isSingleWord,
   loadPronunciation,
   playPronunciation,
@@ -13,9 +13,11 @@ import {
   type Accent,
   type Pronunciation
 } from "../lib/pronounce";
+import type { LanguageCode } from "../types";
 
 interface PronounceRowProps {
   word: string;
+  language?: LanguageCode;
   fallbackPhonetic?: string;
   showPhonetic?: boolean;
   compact?: boolean;
@@ -29,13 +31,14 @@ function formatPhonetic(value: string): string {
 
 export function PronounceRow({
   word,
+  language = "en",
   fallbackPhonetic = "",
   showPhonetic = true,
   compact = false,
   className = ""
 }: PronounceRowProps) {
   const [info, setInfo] = useState<Pronunciation | null>(() =>
-    readCachedPronunciation(word)
+    readCachedPronunciation(word, language)
   );
   const [playing, setPlaying] = useState<Accent | null>(null);
   const [failed, setFailed] = useState(false);
@@ -49,22 +52,22 @@ export function PronounceRow({
       if (!data) {
         return;
       }
-      for (const accent of ACCENTS) {
+      for (const accent of accentsForLanguage(language)) {
         if (!data[accent]?.audio) {
           continue;
         }
-        void verifyRecording(word, accent).then((ok) =>
-          writeRecordingState(word, accent, ok)
+        void verifyRecording(word, accent, language).then((ok) =>
+          writeRecordingState(word, accent, ok, language)
         );
       }
     };
 
-    const cached = readCachedPronunciation(word);
+    const cached = readCachedPronunciation(word, language);
     setInfo(cached);
     verifyRecordings(cached);
 
     if (!cached && isSingleWord(word)) {
-      void loadPronunciation(word, controller.signal)
+      void loadPronunciation(word, language, controller.signal)
         .then((data) => {
           if (!controller.signal.aborted) {
             setInfo(data);
@@ -74,7 +77,7 @@ export function PronounceRow({
         .catch(() => undefined);
     }
     return () => controller.abort();
-  }, [word]);
+  }, [language, word]);
 
   async function toggle(accent: Accent) {
     if (playing === accent) {
@@ -85,7 +88,10 @@ export function PronounceRow({
     setFailed(false);
     setPlaying(accent);
     try {
-      await playPronunciation(word, accent, { pronunciation: info });
+      await playPronunciation(word, accent, {
+        language,
+        pronunciation: info
+      });
     } catch {
       setFailed(true);
     } finally {
@@ -99,10 +105,12 @@ export function PronounceRow({
         className ? ` ${className}` : ""
       }`}
     >
-      {ACCENTS.map((accent) => {
+      {accentsForLanguage(language).map((accent) => {
         const phonetic =
           info?.[accent]?.phonetic ||
-          (accent === "uk" ? fallbackPhonetic : "");
+          (accent === "uk" || (accent === "fr" && language === "fr")
+            ? fallbackPhonetic
+            : "");
         const label = formatPhonetic(phonetic);
         const isPlaying = playing === accent;
         return (

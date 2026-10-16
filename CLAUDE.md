@@ -358,10 +358,37 @@ Cash out a customer | 给顾客结账
 
 ```text
 GET /api/pronounce?word=...          解析英式/美式音标与录音地址
-GET /api/pronounce/audio?word=&accent=uk|us    代理播放录音
+GET /api/pronounce/audio?word=&accent=uk|us&language=en|fr    代理播放录音
 ```
 
 录音经本地服务代理，浏览器无需直接跨域访问第三方，浏览器扩展也无需新增主机权限。
+
+---
+
+# Multi-language - 多语言
+
+第一版支持英语（`en`）与法语（`fr`），语言归属于卡组，卡片继承卡组语言。
+
+规则：
+
+- 老数据没有语言字段时一律视为英语，不迁移、不改写用户数据。
+- 英语使用 ECDICT 离线词典；法语使用在线词典与在线翻译，允许断网时查询失败。
+- 法语发音使用 `fr-FR` 语音合成，IPA 来自在线词典；录音不可用时静默降级。
+- 英语保留英式/美式两个发音按钮；法语只显示一个法国音按钮。
+- 项目、卡组、卡片和复习历史的既有字段名保持不变，法语内容继续使用 `english` 字段承载，避免破坏云同步与历史数据。
+
+云同步：
+
+```text
+decks.language text not null default 'en' check (language in ('en','fr'))
+```
+
+迁移策略：
+
+1. 服务端与前端先按可选字段读取，缺省为 `en`。
+2. 应用新的 `0002_deck_language.sql` 扩展数据库。
+3. 新卡组写入语言；旧卡组保持默认英语。
+4. 迁移前云端写入若遇到缺失列，回退到不带语言的写入，保证可用性。
 
 ---
 
@@ -908,7 +935,7 @@ translationCache
 ```text
 TypeScript 类型检查：通过
 Vite 生产构建：通过
-Vitest：35 项测试全部通过
+Vitest：42 项测试全部通过
 ECDICT：770,611 条离线词条
 Chrome 浏览器回归：通过
 登录与退出登录：通过
@@ -966,10 +993,10 @@ RepLoop/
 ```text
 GET  /api/health
 GET  /api/dictionary/status
-GET  /api/dictionary?word=...
-GET  /api/pronounce?word=...
+GET  /api/dictionary?word=...&language=en|fr
+GET  /api/pronounce?word=...&language=en|fr
 GET  /api/pronounce/audio?word=...&accent=uk|us
-POST /api/translate
+POST /api/translate  { text, language }
 ```
 
 ## 启动方式

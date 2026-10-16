@@ -18,7 +18,8 @@ import {
   updateCard
 } from "../lib/db";
 import { dateKey } from "../lib/format";
-import type { Card, ContentType } from "../types";
+import { deckLanguage, languageLabel, languageName } from "../lib/language";
+import type { Card, ContentType, LanguageCode } from "../types";
 
 interface DeckDetailPageProps {
   deckId: string;
@@ -60,6 +61,7 @@ export function DeckDetailPage({
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<CardFilter>("all");
   const [editing, setEditing] = useState<Card | null>(null);
+  const learningLanguage = deckLanguage(deck);
 
   const filtered = useMemo(() => {
     const keyword = query.trim().toLocaleLowerCase("zh-CN");
@@ -165,7 +167,7 @@ export function DeckDetailPage({
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="搜索英文、中文或标签"
+            placeholder={`搜索${languageLabel(learningLanguage)}、中文或标签`}
             spellCheck={false}
           />
         </div>
@@ -192,6 +194,7 @@ export function DeckDetailPage({
             <CardRow
               key={card.id}
               card={card}
+              language={learningLanguage}
               onEdit={() => setEditing(card)}
               onDelete={async () => {
                 if (window.confirm(`删除卡片"${card.english}"？`)) {
@@ -246,7 +249,11 @@ export function DeckDetailPage({
         }
       >
         {editing ? (
-          <CardEditor card={editing} onChange={(next) => setEditing(next)} />
+          <CardEditor
+            card={editing}
+            language={learningLanguage}
+            onChange={(next) => setEditing(next)}
+          />
         ) : null}
       </Modal>
     </div>
@@ -255,10 +262,12 @@ export function DeckDetailPage({
 
 function CardRow({
   card,
+  language,
   onEdit,
   onDelete
 }: {
   card: Card;
+  language: LanguageCode;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -284,7 +293,9 @@ function CardRow({
             <small className="card-list-level muted">未复习</small>
           )}
         </div>
-        <strong>{card.english || "（未填写英文）"}</strong>
+        <strong>
+          {card.english || `（未填写${languageLabel(language)}）`}
+        </strong>
         <p>{card.chinese || "（未填写中文）"}</p>
         {card.sentence ? (
           <p className="card-list-sentence">{card.sentence}</p>
@@ -304,6 +315,7 @@ function CardRow({
       </button>
       <PronounceRow
         word={card.english}
+        language={language}
         compact
         showPhonetic={false}
         className="card-list-pronounce"
@@ -340,9 +352,11 @@ function CardRow({
 
 function CardEditor({
   card,
+  language,
   onChange
 }: {
   card: Card;
+  language: LanguageCode;
   onChange: (next: Card) => void;
 }) {
   const set = <K extends keyof Card>(key: K, value: Card[K]) => {
@@ -366,11 +380,11 @@ function CardEditor({
       </label>
 
       <label className="field">
-        <span>英文</span>
+        <span>{languageLabel(language)}</span>
         <input
           value={card.english}
           onChange={(event) => set("english", event.target.value)}
-          placeholder="英文内容"
+          placeholder={`${languageLabel(language)}内容`}
         />
       </label>
 
@@ -404,7 +418,7 @@ function CardEditor({
 
       <div className="two-column-fields">
         <label className="field">
-          <span>英文释义</span>
+          <span>{languageName(language)}释义</span>
           <input
             value={card.definitionEn}
             onChange={(event) => set("definitionEn", event.target.value)}

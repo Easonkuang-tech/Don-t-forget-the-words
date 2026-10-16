@@ -21,11 +21,19 @@ import {
   deleteDeck,
   deleteProject,
   renameDeck,
-  renameProject
+  renameProject,
+  updateDeckLanguage
 } from "../lib/db";
 import { DAY_MS, formatFullDate } from "../lib/format";
+import {
+  deckLanguage,
+  languageLabel,
+  LANGUAGE_OPTIONS,
+  resolveLanguage
+} from "../lib/language";
 import type {
   Deck,
+  LanguageCode,
   Project,
   ReviewSessionRequest,
   SessionMode,
@@ -69,6 +77,7 @@ export function HomePage({ onStartReview, onOpenDeck }: HomePageProps) {
 
   const [editor, setEditor] = useState<EditorState>(null);
   const [editorName, setEditorName] = useState("");
+  const [editorLanguage, setEditorLanguage] = useState<LanguageCode>("en");
   const [setupOpen, setSetupOpen] = useState(false);
   const [setupDeckId, setSetupDeckId] = useState("");
   const [setupScope, setSetupScope] = useState<"focused" | "random">(
@@ -120,6 +129,9 @@ export function HomePage({ onStartReview, onOpenDeck }: HomePageProps) {
           ? next.value?.name ?? ""
           : ""
     );
+    setEditorLanguage(
+      next?.kind === "deck" ? deckLanguage(next.value) : "en"
+    );
   };
 
   const saveEditor = async () => {
@@ -134,8 +146,9 @@ export function HomePage({ onStartReview, onOpenDeck }: HomePageProps) {
       }
     } else if (editor.value) {
       await renameDeck(editor.value.id, editorName);
+      await updateDeckLanguage(editor.value.id, editorLanguage);
     } else {
-      await createDeck(editor.projectId, editorName);
+      await createDeck(editor.projectId, editorName, editorLanguage);
     }
     setEditor(null);
   };
@@ -355,7 +368,8 @@ export function HomePage({ onStartReview, onOpenDeck }: HomePageProps) {
                             <span>
                               <strong>{deck.name}</strong>
                               <small>
-                                {deckNew} 新卡 · {deckDue} 待复习
+                                {languageLabel(deckLanguage(deck))} · {deckNew} 新卡 ·{" "}
+                                {deckDue} 待复习
                               </small>
                             </span>
                             <ChevronRight size={18} />
@@ -487,6 +501,23 @@ export function HomePage({ onStartReview, onOpenDeck }: HomePageProps) {
             }}
           />
         </label>
+        {editor?.kind === "deck" ? (
+          <label className="field">
+            <span>学习语言</span>
+            <select
+              value={editorLanguage}
+              onChange={(event) =>
+                setEditorLanguage(resolveLanguage(event.target.value))
+              }
+            >
+              {LANGUAGE_OPTIONS.map((option) => (
+                <option value={option.value} key={option.value}>
+                  {option.label} · {option.native}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
       </Modal>
 
       <Modal

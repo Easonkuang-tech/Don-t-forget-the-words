@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsePronunciation } from "./pronounce.mjs";
+import { parseFrenchPronunciation, parsePronunciation } from "./pronounce.mjs";
 
 const payload = [
   {
@@ -43,5 +43,29 @@ describe("parsePronunciation", () => {
     expect(parsePronunciation(null).uk.audio).toBe("");
     expect(parsePronunciation([{ phonetics: null }]).us.phonetic).toBe("");
     expect(parsePronunciation([null, "x"]).uk.phonetic).toBe("");
+  });
+});
+
+describe("parseFrenchPronunciation", () => {
+  it("extracts the first French IPA", () => {
+    expect(
+      parseFrenchPronunciation({
+        entries: [
+          {
+            language: { code: "fr" },
+            pronunciations: [
+              { type: "ipa", text: "/ʃa/" },
+              { type: "ipa", text: "[ʃɔ]" }
+            ]
+          }
+        ]
+      })
+    ).toEqual({ fr: { phonetic: "/ʃa/", audio: "" } });
+  });
+
+  it("returns an empty French pronunciation for malformed payloads", () => {
+    expect(parseFrenchPronunciation(null)).toEqual({
+      fr: { phonetic: "", audio: "" }
+    });
   });
 });

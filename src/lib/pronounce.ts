@@ -1,10 +1,21 @@
-export type Accent = "uk" | "us";
+import type { LanguageCode } from "../types";
+
+export type Accent = "uk" | "us" | "fr";
 
 export const ACCENTS: Accent[] = ["uk", "us"];
 
+export function accentsForLanguage(language: LanguageCode): Accent[] {
+  return language === "fr" ? ["fr"] : ACCENTS;
+}
+
+export function defaultAccent(language: LanguageCode): Accent {
+  return language === "fr" ? "fr" : "us";
+}
+
 export const ACCENT_LABEL: Record<Accent, string> = {
   uk: "英",
-  us: "美"
+  us: "美",
+  fr: "法"
 };
 
 export interface AccentPronunciation {
@@ -14,8 +25,9 @@ export interface AccentPronunciation {
 
 export interface Pronunciation {
   word: string;
-  uk: AccentPronunciation;
-  us: AccentPronunciation;
+  uk?: AccentPronunciation;
+  us?: AccentPronunciation;
+  fr?: AccentPronunciation;
 }
 
 export interface PronunciationStorage {
@@ -26,7 +38,8 @@ export interface PronunciationStorage {
 export const EMPTY_PRONUNCIATION: Pronunciation = {
   word: "",
   uk: { phonetic: "", audio: "" },
-  us: { phonetic: "", audio: "" }
+  us: { phonetic: "", audio: "" },
+  fr: { phonetic: "", audio: "" }
 };
 
 const CACHE_PREFIX = "reploop:pron:";
@@ -37,18 +50,32 @@ const RECORDING_HIT_TTL_MS = 30 * 24 * 60 * 60 * 1_000;
 const RECORDING_MISS_TTL_MS = 6 * 60 * 60 * 1_000;
 const VERIFY_TIMEOUT_MS = 3_000;
 
-export function accentToLang(accent: Accent): string {
+export function accentToLang(
+  accent: Accent,
+  language: LanguageCode = "en"
+): string {
+  if (accent === "fr" || language === "fr") {
+    return "fr-FR";
+  }
   return accent === "uk" ? "en-GB" : "en-US";
 }
 
 export function isSingleWord(text: string): boolean {
-  return /^[A-Za-z][A-Za-z'’-]*$/.test(text.trim());
+  return /^[\p{L}][\p{L}'’-]*$/u.test(text.trim());
 }
 
-export function audioProxyUrl(word: string, accent: Accent): string {
+export function audioProxyUrl(
+  word: string,
+  accent: Accent,
+  language: LanguageCode = "en"
+): string {
   return `/api/pronounce/audio?word=${encodeURIComponent(
     word.trim()
-  )}&accent=${accent}`;
+  )}&accent=${accent}&language=${language}`;
+}
+
+function cacheKey(word: string, language: LanguageCode): string {
+  return `${CACHE_PREFIX}${language}:${word.trim().toLocaleLowerCase(language)}`;
 }
 
 function defaultStorage(): PronunciationStorage | null {
@@ -61,6 +88,7 @@ function defaultStorage(): PronunciationStorage | null {
 
 export function readCachedPronunciation(
   word: string,
+  language: LanguageCode = "en",
   storage: PronunciationStorage | null = defaultStorage(),
   now = Date.now()
 ): Pronunciation | null {
@@ -68,7 +96,7 @@ export function readCachedPronunciation(
     return null;
   }
   try {
-    const raw = storage.getItem(`${CACHE_PREFIX}${word.trim().toLowerCase()}`);
+    const raw = storage.getItem(cacheKey(word, language));
     if (!raw) {
       return null;
     }
@@ -93,6 +121,7 @@ export function readCachedPronunciation(
 export function writeCachedPronunciation(
   word: string,
   data: Pronunciation | null,
+  language: LanguageCode = "en",
   storage: PronunciationStorage | null = defaultStorage(),
   now = Date.now()
 ): void {
@@ -101,7 +130,7 @@ export function writeCachedPronunciation(
   }
   try {
     storage.setItem(
-      `${CACHE_PREFIX}${word.trim().toLowerCase()}`,
+      cacheKey(word, language),
       JSON.stringify({ at: now, data })
     );
   } catch {
@@ -119,13 +148,16 @@ export function hasPronunciation(
     value.uk?.phonetic ||
       value.uk?.audio ||
       value.us?.phonetic ||
-      value.us?.audio
+      value.us?.audio ||
+      value.fr?.phonetic ||
+      value.fr?.audio
   );
 }
 
 export function readRecordingState(
   word: string,
   accent: Accent,
+  language: LanguageCode = "en",
   storage: PronunciationStorage | null = defaultStorage(),
   now = Date.now()
 ): boolean {
@@ -134,7 +166,9 @@ export function readRecordingState(
   }
   try {
     const raw = storage.getItem(
-      `${RECORDING_PREFIX}${word.trim().toLowerCase()}:${accent}`
+      `${RECORDING_PREFIX}${language}:${word.trim().toLocaleLowerCase(
+        language
+      )}:${accent}`
     );
     if (!raw) {
       return false;
@@ -155,6 +189,7 @@ export function writeRecordingState(
   word: string,
   accent: Accent,
   ok: boolean,
+  language: LanguageCode = "en",
   storage: PronunciationStorage | null = defaultStorage(),
   now = Date.now()
 ): void {
@@ -163,7 +198,9 @@ export function writeRecordingState(
   }
   try {
     storage.setItem(
-      `${RECORDING_PREFIX}${word.trim().toLowerCase()}:${accent}`,
+      `${RECORDING_PREFIX}${language}:${word.trim().toLocaleLowerCase(
+        language
+      )}:${accent}`,
       JSON.stringify({ at: now, ok })
     );
   } catch {
@@ -174,12 +211,13 @@ export function writeRecordingState(
 export async function verifyRecording(
   word: string,
   accent: Accent,
+  language: LanguageCode = "en",
   timeoutMs = VERIFY_TIMEOUT_MS
 ): Promise<boolean> {
   const controller = new AbortController();
   const timer = globalThis.setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(audioProxyUrl(word, accent), {
+    const response = await fetch(audioProxyUrl(word, accent, language), {
       signal: controller.signal
     });
     if (response.body) {
@@ -195,6 +233,7 @@ export async function verifyRecording(
 
 export async function fetchPronunciation(
   word: string,
+  language: LanguageCode = "en",
   signal?: AbortSignal
 ): Promise<Pronunciation | null> {
   const query = word.trim();
@@ -203,7 +242,7 @@ export async function fetchPronunciation(
   }
   try {
     const response = await fetch(
-      `/api/pronounce?word=${encodeURIComponent(query)}`,
+      `/api/pronounce?word=${encodeURIComponent(query)}&language=${language}`,
       { signal }
     );
     if (!response.ok) {
@@ -218,18 +257,19 @@ export async function fetchPronunciation(
 
 export async function loadPronunciation(
   word: string,
+  language: LanguageCode = "en",
   signal?: AbortSignal
 ): Promise<Pronunciation | null> {
-  const cached = readCachedPronunciation(word);
+  const cached = readCachedPronunciation(word, language);
   if (cached) {
     return cached;
   }
   if (!isSingleWord(word)) {
     return null;
   }
-  const data = await fetchPronunciation(word, signal);
+  const data = await fetchPronunciation(word, language, signal);
   if (!signal?.aborted) {
-    writeCachedPronunciation(word, data);
+    writeCachedPronunciation(word, data, language);
   }
   return data;
 }
@@ -256,7 +296,7 @@ export function isSpeechSupported(): boolean {
   return typeof globalThis.speechSynthesis !== "undefined";
 }
 
-function pickVoice(accent: Accent): SpeechSynthesisVoice | null {
+function pickVoice(accent: Accent, language: LanguageCode): SpeechSynthesisVoice | null {
   const synth = globalThis.speechSynthesis;
   if (!synth) {
     return null;
@@ -265,7 +305,7 @@ function pickVoice(accent: Accent): SpeechSynthesisVoice | null {
   if (!voices.length) {
     return null;
   }
-  const lang = accentToLang(accent).toLowerCase();
+  const lang = accentToLang(accent, language).toLowerCase();
   const exact = voices.filter(
     (voice) => voice.lang?.toLowerCase().replace("_", "-") === lang
   );
@@ -293,7 +333,11 @@ function waitForVoices(): Promise<void> {
   });
 }
 
-async function speakWithSynth(text: string, accent: Accent): Promise<void> {
+async function speakWithSynth(
+  text: string,
+  accent: Accent,
+  language: LanguageCode
+): Promise<void> {
   const synth = globalThis.speechSynthesis;
   if (!synth || typeof SpeechSynthesisUtterance === "undefined") {
     throw new Error("当前环境不支持语音合成");
@@ -303,8 +347,8 @@ async function speakWithSynth(text: string, accent: Accent): Promise<void> {
 
   await new Promise<void>((resolve, reject) => {
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = accentToLang(accent);
-    const voice = pickVoice(accent);
+    utterance.lang = accentToLang(accent, language);
+    const voice = pickVoice(accent, language);
     if (voice) {
       utterance.voice = voice;
     }
@@ -359,6 +403,7 @@ function playAudioElement(url: string): Promise<void> {
 }
 
 export interface PlayOptions {
+  language?: LanguageCode;
   pronunciation?: Pronunciation | null;
 }
 
@@ -373,12 +418,15 @@ export async function playPronunciation(
   }
 
   stopPronunciation();
+  const language = options.language ?? "en";
 
   const known =
-    options.pronunciation ?? readCachedPronunciation(text) ?? null;
+    options.pronunciation ?? readCachedPronunciation(text, language) ?? null;
   const recordable = Boolean(known) && isSingleWord(text) && Boolean(known?.[accent]?.audio);
   const recorded =
-    recordable && readRecordingState(text, accent) ? audioProxyUrl(text, accent) : "";
+    recordable && readRecordingState(text, accent, language)
+      ? audioProxyUrl(text, accent, language)
+      : "";
 
   if (recorded) {
     try {
@@ -389,14 +437,14 @@ export async function playPronunciation(
     }
   }
 
-  await speakWithSynth(text, accent);
+  await speakWithSynth(text, accent, language);
 
   if (!known && isSingleWord(text)) {
-    void loadPronunciation(text);
+    void loadPronunciation(text, language);
   }
-  if (recordable && !readRecordingState(text, accent)) {
-    void verifyRecording(text, accent).then((ok) =>
-      writeRecordingState(text, accent, ok)
+  if (recordable && !readRecordingState(text, accent, language)) {
+    void verifyRecording(text, accent, language).then((ok) =>
+      writeRecordingState(text, accent, ok, language)
     );
   }
 }

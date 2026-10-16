@@ -8,6 +8,7 @@ export interface Deck {
   id: string;
   project_id: string;
   name: string;
+  language?: "en" | "fr";
   position: number;
 }
 

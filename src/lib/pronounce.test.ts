@@ -32,6 +32,7 @@ describe("accentToLang", () => {
   it("maps uk and us to their language tags", () => {
     expect(accentToLang("uk")).toBe("en-GB");
     expect(accentToLang("us")).toBe("en-US");
+    expect(accentToLang("fr", "fr")).toBe("fr-FR");
   });
 });
 
@@ -47,7 +48,7 @@ describe("isSingleWord", () => {
 describe("audioProxyUrl", () => {
   it("builds an encoded proxy path", () => {
     expect(audioProxyUrl("ice cream", "us")).toBe(
-      "/api/pronounce/audio?word=ice%20cream&accent=us"
+      "/api/pronounce/audio?word=ice%20cream&accent=us&language=en"
     );
   });
 });
@@ -55,26 +56,32 @@ describe("audioProxyUrl", () => {
 describe("pronunciation cache", () => {
   it("round-trips a hit", () => {
     const storage = memoryStorage();
-    writeCachedPronunciation("Semester", sample, storage, 1_000);
-    expect(readCachedPronunciation("semester", storage, 2_000)).toEqual(sample);
+    writeCachedPronunciation("Semester", sample, "en", storage, 1_000);
+    expect(readCachedPronunciation("semester", "en", storage, 2_000)).toEqual(sample);
   });
 
   it("expires hits after a week and misses after six hours", () => {
     const storage = memoryStorage();
-    writeCachedPronunciation("semester", sample, storage, 0);
-    writeCachedPronunciation("unknown", null, storage, 0);
+    writeCachedPronunciation("semester", sample, "en", storage, 0);
+    writeCachedPronunciation("unknown", null, "en", storage, 0);
 
-    expect(readCachedPronunciation("semester", storage, 8 * 24 * 3_600_000)).toBeNull();
-    expect(readCachedPronunciation("unknown", storage, 7 * 3_600_000)).toBeNull();
-    expect(readCachedPronunciation("unknown", storage, 1_000)).toBeNull();
-    expect(readCachedPronunciation("semester", storage, 1_000)).toEqual(sample);
+    expect(
+      readCachedPronunciation("semester", "en", storage, 8 * 24 * 3_600_000)
+    ).toBeNull();
+    expect(
+      readCachedPronunciation("unknown", "en", storage, 7 * 3_600_000)
+    ).toBeNull();
+    expect(readCachedPronunciation("unknown", "en", storage, 1_000)).toBeNull();
+    expect(readCachedPronunciation("semester", "en", storage, 1_000)).toEqual(
+      sample
+    );
   });
 
   it("returns null without storage or on malformed data", () => {
     const storage = memoryStorage();
     storage.setItem("reploop:pron:broken", "{not json");
-    expect(readCachedPronunciation("broken", storage, 1_000)).toBeNull();
-    expect(readCachedPronunciation("semester", null, 1_000)).toBeNull();
+    expect(readCachedPronunciation("broken", "en", storage, 1_000)).toBeNull();
+    expect(readCachedPronunciation("semester", "en", null, 1_000)).toBeNull();
   });
 });
 
@@ -95,25 +102,30 @@ describe("hasPronunciation", () => {
 describe("recording verification state", () => {
   it("only reports usable when a recording was verified", () => {
     const storage = memoryStorage();
-    writeRecordingState("water", "uk", true, storage, 0);
-    writeRecordingState("water", "us", false, storage, 0);
+    writeRecordingState("water", "uk", true, "en", storage, 0);
+    writeRecordingState("water", "us", false, "en", storage, 0);
 
-    expect(readRecordingState("water", "uk", storage, 1_000)).toBe(true);
-    expect(readRecordingState("water", "us", storage, 1_000)).toBe(false);
-    expect(readRecordingState("water", "us", storage, 1_000)).toBe(false);
+    expect(readRecordingState("water", "uk", "en", storage, 1_000)).toBe(true);
+    expect(readRecordingState("water", "us", "en", storage, 1_000)).toBe(false);
   });
 
   it("expires failures sooner than successes", () => {
     const storage = memoryStorage();
-    writeRecordingState("water", "uk", true, storage, 0);
-    writeRecordingState("water", "us", false, storage, 0);
+    writeRecordingState("water", "uk", true, "en", storage, 0);
+    writeRecordingState("water", "us", false, "en", storage, 0);
 
-    expect(readRecordingState("water", "uk", storage, 8 * 24 * 3_600_000)).toBe(true);
-    expect(readRecordingState("water", "us", storage, 7 * 3_600_000)).toBe(false);
-    expect(readRecordingState("water", "uk", storage, 40 * 24 * 3_600_000)).toBe(false);
+    expect(
+      readRecordingState("water", "uk", "en", storage, 8 * 24 * 3_600_000)
+    ).toBe(true);
+    expect(
+      readRecordingState("water", "us", "en", storage, 7 * 3_600_000)
+    ).toBe(false);
+    expect(
+      readRecordingState("water", "uk", "en", storage, 40 * 24 * 3_600_000)
+    ).toBe(false);
   });
 
   it("defaults to unusable without storage", () => {
-    expect(readRecordingState("water", "uk", null, 1_000)).toBe(false);
+    expect(readRecordingState("water", "uk", "en", null, 1_000)).toBe(false);
   });
 });
