@@ -8,7 +8,7 @@ import type {
   ReviewSnapshot
 } from "../types";
 import { DEFAULT_SETTINGS } from "./constants";
-import { resolveLanguage } from "./language";
+import { isLanguageCode, resolveLanguage } from "./language";
 import { requireSupabase } from "./supabase";
 
 const TABLES = [
@@ -130,7 +130,7 @@ function fromDeckRow(row: UnknownRow): Deck {
     id: String(row.id),
     projectId: String(row.project_id),
     name: String(row.name),
-    language: resolveLanguage(row.language),
+    language: isLanguageCode(row.language) ? row.language : undefined,
     createdAt: Number(row.created_at),
     updatedAt: Number(row.updated_at),
     position: Number(row.position ?? 0)

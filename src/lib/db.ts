@@ -85,6 +85,10 @@ async function readLocalSnapshot(): Promise<ReviewSnapshot> {
 }
 
 async function applySnapshotToLocal(snapshot: ReviewSnapshot): Promise<void> {
+  const existingDecks = await db.decks.toArray();
+  const existingLanguages = new Map(
+    existingDecks.map((deck) => [deck.id, resolveLanguage(deck.language)])
+  );
   await db.transaction(
     "rw",
     db.projects,
@@ -101,7 +105,16 @@ async function applySnapshotToLocal(snapshot: ReviewSnapshot): Promise<void> {
         db.settings.clear()
       ]);
       await db.projects.bulkPut(snapshot.projects);
-      await db.decks.bulkPut(snapshot.decks);
+      await db.decks.bulkPut(
+        snapshot.decks.map((deck) =>
+          deck.language
+            ? deck
+            : {
+                ...deck,
+                language: existingLanguages.get(deck.id) ?? "en"
+              }
+        )
+      );
       await db.cards.bulkPut(snapshot.cards);
       await db.reviewLogs.bulkPut(snapshot.reviewLogs);
       await db.settings.bulkPut(
