@@ -4,11 +4,13 @@ import {
   ImageIcon,
   LoaderCircle,
   RefreshCw,
+  Trash2,
   Upload,
   X
 } from "lucide-react";
 import {
   cardImageFields,
+  deleteCardImage,
   findCardImage,
   uploadCardImage,
   type CardImage as CardImageResult
@@ -65,6 +67,7 @@ export function CardImage({
   const [failed, setFailed] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [expanded, setExpanded] = useState(false);
+  const [suppressAutoLoad, setSuppressAutoLoad] = useState(false);
   const requestRef = useRef<AbortController | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -95,14 +98,26 @@ export function CardImage({
     word
   ]);
 
+  useEffect(() => {
+    setSuppressAutoLoad(false);
+  }, [word]);
+
   async function handleUpload(file: File | undefined) {
     if (!file) {
       return;
     }
     setUploading(true);
     setUploadError("");
+    const previousUserImage =
+      (result?.origin ?? imageOrigin) === "user" ? result?.imageUrl ?? "" : "";
     try {
       const fields = await uploadCardImage(file);
+      if (previousUserImage && previousUserImage !== fields.imageUrl) {
+        await deleteCardImage({
+          imageUrl: previousUserImage,
+          imageOrigin: "user"
+        });
+      }
       await onResolved?.(fields);
       setResult({
         found: true,
@@ -115,6 +130,7 @@ export function CardImage({
         origin: "user"
       });
       setFailed(false);
+      setSuppressAutoLoad(false);
     } catch (error) {
       setUploadError(
         error instanceof Error ? error.message : "图片上传失败，请重试"
@@ -125,6 +141,30 @@ export function CardImage({
       if (fileRef.current) {
         fileRef.current.value = "";
       }
+    }
+  }
+
+  async function handleDelete() {
+    if (!result) {
+      return;
+    }
+    setSuppressAutoLoad(true);
+    setUploading(true);
+    setUploadError("");
+    try {
+      const fields = await deleteCardImage({
+        imageUrl: result.imageUrl,
+        imageOrigin: result.origin ?? imageOrigin
+      });
+      await onResolved?.(fields);
+      setResult(null);
+      setFailed(false);
+    } catch (error) {
+      setUploadError(
+        error instanceof Error ? error.message : "删除图片失败，请重试"
+      );
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -163,13 +203,20 @@ export function CardImage({
   }
 
   useEffect(() => {
-    if (autoLoad && imageOrigin !== "user" && !result && !loading && !failed) {
+    if (
+      autoLoad &&
+      imageOrigin !== "user" &&
+      !suppressAutoLoad &&
+      !result &&
+      !loading &&
+      !failed
+    ) {
       void load();
     }
     return () => requestRef.current?.abort();
     // load intentionally follows word/language/autoLoad state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoLoad, imageOrigin, language, word]);
+  }, [autoLoad, imageOrigin, language, suppressAutoLoad, word]);
 
   const uploadControl = (
     <input
@@ -265,6 +312,17 @@ export function CardImage({
               )}
               换图
             </button>
+            {(result.origin ?? imageOrigin) === "user" ? (
+              <button
+                type="button"
+                className="card-image-delete-link"
+                onClick={() => void handleDelete()}
+                disabled={uploading}
+              >
+                <Trash2 size={12} />
+                删除
+              </button>
+            ) : null}
             {result.sourceUrl ? (
               <a
                 href={result.sourceUrl}

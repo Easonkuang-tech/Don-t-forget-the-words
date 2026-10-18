@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_CARD_IMAGE, cardImageFields, findCardImage } from "./cardImage";
+import {
+  EMPTY_CARD_IMAGE,
+  cardImageFields,
+  findCardImage,
+  storagePathFromPublicUrl
+} from "./cardImage";
 
 describe("card image client", () => {
   it("returns an empty result for an empty word", async () => {
@@ -26,5 +31,14 @@ describe("card image client", () => {
       imageSourceUrl: "https://example.test/source",
       imageOrigin: "auto"
     });
+  });
+
+  it("extracts the storage path from a Supabase public image URL", () => {
+    expect(
+      storagePathFromPublicUrl(
+        "https://example.supabase.co/storage/v1/object/public/card-images/user-1/photo.jpg?token=1"
+      )
+    ).toBe("user-1/photo.jpg");
+    expect(storagePathFromPublicUrl("https://example.test/photo.jpg")).toBeNull();
   });
 });

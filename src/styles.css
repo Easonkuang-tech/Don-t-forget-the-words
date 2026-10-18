@@ -3401,6 +3401,7 @@ p {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 10px;
   color: var(--muted);
   font-size: 0.68rem;
@@ -3434,6 +3435,28 @@ p {
   font-size: 0.68rem;
   font-weight: 700;
   cursor: pointer;
+}
+
+.card-image-delete-link {
+  appearance: none;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border: 1px solid var(--red-soft);
+  border-radius: 999px;
+  background: var(--red-soft);
+  color: var(--red);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.card-image-delete-link:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 .card-image-overlay {

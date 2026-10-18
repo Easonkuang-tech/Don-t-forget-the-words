@@ -178,3 +178,39 @@ export async function uploadCardImage(file: File): Promise<{
     imageOrigin: "user"
   };
 }
+
+export function storagePathFromPublicUrl(url: string): string | null {
+  const marker = "/storage/v1/object/public/card-images/";
+  const index = url.indexOf(marker);
+  if (index < 0) {
+    return null;
+  }
+  const path = url.slice(index + marker.length).split("?")[0];
+  return path ? decodeURIComponent(path) : null;
+}
+
+export async function deleteCardImage(input: {
+  imageUrl: string;
+  imageOrigin: "user" | "auto" | "";
+}): Promise<{
+  imageUrl: "";
+  imageThumbUrl: "";
+  imageAttribution: "";
+  imageSourceUrl: "";
+  imageOrigin: "";
+}> {
+  if (input.imageOrigin === "user" && supabase) {
+    const path = storagePathFromPublicUrl(input.imageUrl);
+    const userId = (await supabase.auth.getSession()).data.session?.user.id;
+    if (path && userId && path.startsWith(`${userId}/`)) {
+      await supabase.storage.from("card-images").remove([path]);
+    }
+  }
+  return {
+    imageUrl: "",
+    imageThumbUrl: "",
+    imageAttribution: "",
+    imageSourceUrl: "",
+    imageOrigin: ""
+  };
+}
