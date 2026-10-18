@@ -15,6 +15,7 @@ import { useMemo, useState } from "react";
 import { EmptyState } from "../components/EmptyState";
 import { PronounceRow } from "../components/PronounceRow";
 import { createCard, db } from "../lib/db";
+import { cardImageFields, findCardImage } from "../lib/cardImage";
 import {
   detectContentType,
   lookupDictionary,
@@ -150,6 +151,12 @@ export function DiscoverPage() {
     setSaving(true);
     setNotice("");
     try {
+      const image = await findCardImage({
+        word: draft.english,
+        meaning: draft.chinese,
+        definition: draft.definitionEn || draft.definitionZh || draft.chinese,
+        language: activeLanguage
+      });
       await createCard({
         deckId: activeDeckId,
         contentType: draft.contentType,
@@ -167,7 +174,8 @@ export function DiscoverPage() {
         definitionZh: draft.definitionZh,
         partOfSpeech: draft.partOfSpeech,
         tags: [],
-        source: draft.source
+        source: draft.source,
+        ...cardImageFields(image)
       });
       setNotice(
         `已加入“${decks.find((deck) => deck.id === activeDeckId)?.name ?? "卡组"}”`

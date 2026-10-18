@@ -9,6 +9,7 @@ import {
   getDictionaryStatus,
   lookupWord
 } from "./dictionary.mjs";
+import { findCardImage } from "./card-image.mjs";
 import { lookupFrench } from "./french.mjs";
 import { resolvePronunciation } from "./pronounce.mjs";
 import { translateLanguage } from "./translation.mjs";
@@ -44,6 +45,14 @@ app.get("/api/dictionary", (request, response) => {
     return;
   }
   response.json(lookupWord(request.query.word));
+});
+
+app.post("/api/card-image", async (request, response) => {
+  try {
+    response.json(await findCardImage(request.body));
+  } catch {
+    response.status(502).json({ found: false, error: "配图暂时不可用" });
+  }
 });
 
 app.get("/api/pronounce", async (request, response) => {

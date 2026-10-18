@@ -296,6 +296,15 @@ function CardRow({
         <strong>
           {card.english || `（未填写${languageLabel(language)}）`}
         </strong>
+        {card.imageThumbUrl || card.imageUrl ? (
+          <span className="card-list-image">
+            <img
+              src={card.imageThumbUrl || card.imageUrl}
+              alt={`${card.english} 的配图`}
+              loading="lazy"
+            />
+          </span>
+        ) : null}
         <p>{card.chinese || "（未填写中文）"}</p>
         {card.sentence ? (
           <p className="card-list-sentence">{card.sentence}</p>

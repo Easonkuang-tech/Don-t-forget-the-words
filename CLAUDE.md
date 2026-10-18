@@ -392,6 +392,41 @@ decks.language text not null default 'en' check (language in ('en','fr'))
 
 ---
 
+# Card Images - 卡片配图
+
+第一版使用免费图库，不调用图片生成模型：
+
+```text
+主图源：Openverse（无需密钥，匿名限流）
+兜底：Wikimedia Commons
+查询词：语言 + 单词 + 词典释义
+```
+
+规则：
+
+- 法语卡片优先用英文词典释义生成 2 个关键词，避免把法语词本身当英文搜索词。
+- 每张卡最多保存一张图片，字段为 `image_url`、`image_thumb_url`、`image_attribution`、`image_source_url`。
+- 图片按卡片保存，跨设备同步；不下载进 Railway 磁盘或 Supabase Storage。
+- 单个卡片创建时同步请求配图；模板批量创建时后台逐张补图，失败不阻塞保存。
+- 复习页点击「翻转看配图」后显示图片；加载失败显示「点击重试」，重试不重新生成检索词。
+- 图片加载、翻面和重试都不能阻塞答题、评分或下一题。
+- 保存作者与许可信息，并在图片下方显示来源链接。
+
+API：
+
+```text
+POST /api/card-image  { word, meaning, definition, language }
+```
+
+迁移：
+
+```text
+0002_deck_language.sql
+0003_card_images.sql
+```
+
+---
+
 # Search and Import - 搜索与外部词库
 
 ## 站内搜索
@@ -935,7 +970,7 @@ translationCache
 ```text
 TypeScript 类型检查：通过
 Vite 生产构建：通过
-Vitest：42 项测试全部通过
+Vitest：48 项测试全部通过
 ECDICT：770,611 条离线词条
 Chrome 浏览器回归：通过
 登录与退出登录：通过
@@ -995,7 +1030,8 @@ GET  /api/health
 GET  /api/dictionary/status
 GET  /api/dictionary?word=...&language=en|fr
 GET  /api/pronounce?word=...&language=en|fr
-GET  /api/pronounce/audio?word=...&accent=uk|us
+GET  /api/pronounce/audio?word=...&accent=uk|us&language=en|fr
+POST /api/card-image  { word, meaning, definition, language }
 POST /api/translate  { text, language }
 ```
 

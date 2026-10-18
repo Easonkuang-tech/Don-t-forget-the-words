@@ -3,16 +3,18 @@ import {
   Check,
   ChevronRight,
   CircleHelp,
+  ImageIcon,
   RotateCcw,
   X
 } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { EmptyState } from "../components/EmptyState";
+import { CardImage } from "../components/CardImage";
 import { MemoryMeter } from "../components/MemoryMeter";
 import { PronounceRow } from "../components/PronounceRow";
 import { matchEnglishAnswer } from "../lib/answer";
-import { createCardLog, db } from "../lib/db";
+import { createCardLog, db, updateCard } from "../lib/db";
 import { deckLanguage, languageLabel } from "../lib/language";
 import {
   defaultAccent,
@@ -65,6 +67,7 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
   const [result, setResult] = useState<PendingResult | null>(null);
   const [committing, setCommitting] = useState(false);
   const [commitError, setCommitError] = useState("");
+  const [imageOpen, setImageOpen] = useState(false);
   const [summary, setSummary] = useState({
     completed: 0,
     correct: 0,
@@ -92,6 +95,10 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
     return () => stopPronunciation();
   }, [promptWord]);
 
+  useEffect(() => {
+    setImageOpen(false);
+  }, [question?.id]);
+
   function playPromptWord() {
     if (!promptWord) {
       return;
@@ -99,6 +106,27 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
     void playPronunciation(promptWord, defaultAccent(learningLanguage), {
       language: learningLanguage
     }).catch(() => undefined);
+  }
+
+  async function handleImageResolved(
+    image: {
+      imageUrl: string;
+      imageThumbUrl: string;
+      imageAttribution: string;
+      imageSourceUrl: string;
+    }
+  ) {
+    if (!question) {
+      return;
+    }
+    await updateCard(question.card.id, image);
+    setQuestions((current) =>
+      current.map((item) =>
+        item.card.id === question.card.id
+          ? { ...item, card: { ...item.card, ...image } }
+          : item
+      )
+    );
   }
 
   const hintSlots = useMemo(() => {
@@ -425,8 +453,40 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
               <span className="practice-chip">不计入计划</span>
             ) : null}
           </div>
-          <MemoryMeter level={question.card.level} />
+          <div className="study-card-actions">
+            <button
+              type="button"
+              className="image-toggle-button"
+              onClick={() => setImageOpen((current) => !current)}
+              aria-expanded={imageOpen}
+            >
+              <ImageIcon size={15} />
+              {imageOpen ? "收起配图" : "翻转看配图"}
+            </button>
+            <MemoryMeter level={question.card.level} />
+          </div>
         </header>
+
+        {imageOpen ? (
+          <div className="review-card-image">
+            <CardImage
+              word={question.card.english}
+              meaning={question.card.chinese}
+              definition={
+                question.card.definitionEn ||
+                question.card.definitionZh ||
+                question.card.chinese
+              }
+              language={learningLanguage}
+              imageUrl={question.card.imageUrl}
+              imageThumbUrl={question.card.imageThumbUrl}
+              imageAttribution={question.card.imageAttribution}
+              imageSourceUrl={question.card.imageSourceUrl}
+              autoLoad
+              onResolved={handleImageResolved}
+            />
+          </div>
+        ) : null}
 
         <div className="question-upper">
           {question.mode === "cloze" && question.cloze ? (

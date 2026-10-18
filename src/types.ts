@@ -43,6 +43,10 @@ export interface Card {
   definitionEn: string;
   definitionZh: string;
   partOfSpeech: string;
+  imageUrl?: string;
+  imageThumbUrl?: string;
+  imageAttribution?: string;
+  imageSourceUrl?: string;
   tags: string[];
   source: "manual" | "template" | "dictionary" | "translation";
   level: number;

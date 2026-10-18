@@ -67,6 +67,10 @@ function cardRow(userId: string, card: Card): UnknownRow {
     definition_en: card.definitionEn,
     definition_zh: card.definitionZh,
     part_of_speech: card.partOfSpeech,
+    image_url: card.imageUrl ?? "",
+    image_thumb_url: card.imageThumbUrl ?? "",
+    image_attribution: card.imageAttribution ?? "",
+    image_source_url: card.imageSourceUrl ?? "",
     tags: card.tags,
     source: card.source,
     level: card.level,
@@ -151,6 +155,10 @@ function fromCardRow(row: UnknownRow): Card {
     definitionEn: String(row.definition_en ?? ""),
     definitionZh: String(row.definition_zh ?? ""),
     partOfSpeech: String(row.part_of_speech ?? ""),
+    imageUrl: String(row.image_url ?? ""),
+    imageThumbUrl: String(row.image_thumb_url ?? ""),
+    imageAttribution: String(row.image_attribution ?? ""),
+    imageSourceUrl: String(row.image_source_url ?? ""),
     tags: Array.isArray(row.tags) ? row.tags.map(String) : [],
     source: row.source as Card["source"],
     level: Number(row.level ?? 0),
@@ -270,9 +278,25 @@ export async function upsertCloudCard(
   userId: string,
   card: Card
 ): Promise<void> {
+  const row = cardRow(userId, card);
   const result = await requireSupabase()
     .from("cards")
-    .upsert(cardRow(userId, card), { onConflict: "user_id,id" });
+    .upsert(row, { onConflict: "user_id,id" });
+  if (
+    result.error &&
+    String(result.error.message ?? "").toLowerCase().includes("image_")
+  ) {
+    const legacyRow = { ...row };
+    delete legacyRow.image_url;
+    delete legacyRow.image_thumb_url;
+    delete legacyRow.image_attribution;
+    delete legacyRow.image_source_url;
+    const legacy = await requireSupabase()
+      .from("cards")
+      .upsert(legacyRow, { onConflict: "user_id,id" });
+    expectData(true, legacy.error);
+    return;
+  }
   expectData(true, result.error);
 }
 
@@ -344,7 +368,10 @@ export async function importCloudSnapshot(
   });
   expectData(true, result.error);
   await Promise.all(
-    snapshot.decks.map((deck) => upsertCloudDeck(userId, deck))
+    [
+      ...snapshot.decks.map((deck) => upsertCloudDeck(userId, deck)),
+      ...snapshot.cards.map((card) => upsertCloudCard(userId, card))
+    ]
   );
 }
 

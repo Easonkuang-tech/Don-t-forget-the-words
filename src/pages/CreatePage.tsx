@@ -11,7 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 import { EmptyState } from "../components/EmptyState";
 import { PronounceRow } from "../components/PronounceRow";
 import { SegmentedControl } from "../components/SegmentedControl";
-import { createCard, db } from "../lib/db";
+import { createCard, db, updateCard } from "../lib/db";
 import {
   detectContentType,
   firstMeaning,
@@ -19,6 +19,7 @@ import {
   translateText
 } from "../lib/dictionary";
 import { deckLanguage, languageLabel, languageName } from "../lib/language";
+import { cardImageFields, findCardImage } from "../lib/cardImage";
 import type {
   ContentType,
   Deck,
@@ -108,6 +109,12 @@ export function CreatePage() {
 
     setSaving(true);
     try {
+      const image = await findCardImage({
+        word: draft.english,
+        meaning: draft.chinese,
+        definition: draft.definitionEn || draft.definitionZh || draft.chinese,
+        language: activeLanguage
+      });
       await createCard({
         deckId: activeDeckId,
         contentType: draft.contentType,
@@ -121,9 +128,10 @@ export function CreatePage() {
         definitionZh: draft.definitionZh.trim(),
         partOfSpeech: draft.partOfSpeech.trim(),
         tags: draft.tags,
-        source: draft.source
+        source: draft.source,
+        ...cardImageFields(image)
       });
-      setNotice("卡片已保存");
+      setNotice(image.found ? "卡片已保存并找到配图" : "卡片已保存，配图可在复习页重试");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "保存失败");
     } finally {
@@ -195,8 +203,9 @@ export function CreatePage() {
             }
             setSaving(true);
             try {
+              const created: { cardId: string; draft: DraftCard }[] = [];
               for (const draft of drafts) {
-                await createCard({
+                const card = await createCard({
                   deckId: activeDeckId,
                   contentType: draft.contentType,
                   english: draft.english.trim(),
@@ -211,8 +220,29 @@ export function CreatePage() {
                   tags: draft.tags,
                   source: "template"
                 });
+                created.push({ cardId: card.id, draft });
               }
               setNotice(`已保存 ${drafts.length} 张卡片`);
+              void (async () => {
+                for (const { cardId, draft } of created) {
+                  try {
+                    const image = await findCardImage({
+                      word: draft.english,
+                      meaning: draft.chinese,
+                      definition:
+                        draft.definitionEn ||
+                        draft.definitionZh ||
+                        draft.chinese,
+                      language: activeLanguage
+                    });
+                    if (image.found) {
+                      await updateCard(cardId, cardImageFields(image));
+                    }
+                  } catch {
+                    // The review page exposes retry if this background pass fails.
+                  }
+                }
+              })();
             } catch (error) {
               setNotice(error instanceof Error ? error.message : "批量保存失败");
             } finally {

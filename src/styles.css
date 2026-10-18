@@ -3273,3 +3273,196 @@ p {
     animation: none;
   }
 }
+
+/* Card images */
+
+.study-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.image-toggle-button {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--green);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.image-toggle-button:hover,
+.image-toggle-button[aria-expanded="true"] {
+  border-color: var(--green);
+  background: var(--green-soft);
+}
+
+.image-toggle-button:focus-visible,
+.card-image-retry:focus-visible,
+.card-image-preview:focus-visible,
+.card-image-close:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.review-card-image {
+  padding: 0 22px 18px;
+}
+
+.card-image-shell {
+  min-height: 132px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.card-image-shell.is-loading {
+  color: var(--blue);
+}
+
+.card-image-retry {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--blue);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.card-image-figure {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.card-image-preview {
+  appearance: none;
+  display: block;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  cursor: zoom-in;
+}
+
+.card-image-preview img {
+  display: block;
+  width: 100%;
+  max-height: 300px;
+  object-fit: cover;
+}
+
+.card-image-figure figcaption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.card-image-figure figcaption span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-image-figure figcaption a {
+  flex: none;
+  display: inline-flex;
+  color: var(--blue);
+}
+
+.card-image-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background: rgba(15, 25, 22, 0.82);
+  cursor: zoom-out;
+}
+
+.card-image-overlay img {
+  max-width: min(1100px, 94vw);
+  max-height: 88vh;
+  border-radius: 10px;
+  object-fit: contain;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.32);
+  cursor: default;
+}
+
+.card-image-close {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  cursor: pointer;
+}
+
+.card-list-image {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  margin-top: 4px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.card-list-image img {
+  display: block;
+  width: 100%;
+  max-height: 160px;
+  object-fit: cover;
+}
+
+@media (max-width: 640px) {
+  .study-card-actions {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .review-card-image {
+    padding-inline: 16px;
+  }
+
+  .card-image-overlay {
+    padding: 16px;
+  }
+}
