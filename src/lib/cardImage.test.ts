@@ -13,7 +13,7 @@ describe("card image client", () => {
       cardImageFields({
         found: true,
         query: "January month",
-        provider: "Openverse",
+        provider: "Wikimedia Commons",
         imageUrl: "https://example.test/full.jpg",
         imageThumbUrl: "",
         sourceUrl: "https://example.test/source",

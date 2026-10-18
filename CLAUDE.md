@@ -397,8 +397,7 @@ decks.language text not null default 'en' check (language in ('en','fr'))
 第一版使用免费图库，不调用图片生成模型：
 
 ```text
-主图源：Openverse（无需密钥，匿名限流）
-兜底：Wikimedia Commons
+图源：Wikimedia Commons（维基百科图片库，无需密钥）
 查询词：语言 + 单词 + 词典释义
 ```
 

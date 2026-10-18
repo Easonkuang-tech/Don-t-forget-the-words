@@ -1,4 +1,3 @@
-const OPENVERSE_ENDPOINT = "https://api.openverse.org/v1/images/";
 const WIKIMEDIA_ENDPOINT = "https://commons.wikimedia.org/w/api.php";
 const REQUEST_TIMEOUT_MS = 5_000;
 const HIT_TTL_MS = 7 * 24 * 60 * 60 * 1_000;
@@ -100,58 +99,6 @@ function stripHtml(value) {
     .trim();
 }
 
-export function parseOpenverse(payload, query) {
-  const results = Array.isArray(payload?.results) ? payload.results : [];
-  const terms = normalizeKey(query).split(/\s+/).filter(Boolean);
-  const personQuery = terms.some((term) =>
-    ["person", "people", "woman", "man", "portrait", "girl", "boy"].includes(term)
-  );
-
-  function score(item) {
-    const text = normalizeKey(
-      [
-        item?.title,
-        ...(Array.isArray(item?.tags) ? item.tags.map((tag) => tag?.name) : [])
-      ].join(" ")
-    );
-    let value = terms.reduce(
-      (total, term) => total + (text.includes(term) ? 2 : 0),
-      0
-    );
-    if (
-      !personQuery &&
-      /portrait|woman|man|people|person|girl|boy/.test(text)
-    ) {
-      value -= 5;
-    }
-    return value;
-  }
-
-  const result = results
-    .filter(
-      (item) =>
-        item &&
-        item.mature !== true &&
-        typeof item.url === "string" &&
-        item.url &&
-        typeof item.thumbnail === "string" &&
-        item.thumbnail
-    )
-    .sort((left, right) => score(right) - score(left))[0];
-  if (!result) {
-    return null;
-  }
-  return {
-    found: true,
-    query,
-    provider: "Openverse",
-    imageUrl: result.url,
-    imageThumbUrl: result.thumbnail,
-    sourceUrl: result.foreign_landing_url ?? result.detail_url ?? "",
-    attribution: stripHtml(result.attribution)
-  };
-}
-
 export function parseWikimedia(payload, query) {
   const pages = payload?.query?.pages;
   if (!pages || typeof pages !== "object") {
@@ -182,7 +129,7 @@ export function parseWikimedia(payload, query) {
       );
       const medicalPenalty =
         !terms.some((term) => ["medical", "disease"].includes(term)) &&
-        /alopecia|disease|medical|surgery|wound|disorder|portrait|woman|man|person|people/.test(
+        /alopecia|disease|medical|surgery|wound|disorder|rhinotracheitis|viral|virus|infection|sick|illness|portrait|woman|man|person|people/.test(
           text
         )
           ? 5
@@ -234,16 +181,6 @@ async function fetchJson(url, headers = {}) {
   }
 }
 
-async function searchOpenverse(query) {
-  const url = new URL(OPENVERSE_ENDPOINT);
-  url.searchParams.set("q", query);
-  url.searchParams.set("page_size", "4");
-  url.searchParams.set("license_type", "commercial");
-  url.searchParams.set("mature", "false");
-  const payload = await fetchJson(url);
-  return payload ? parseOpenverse(payload, query) : null;
-}
-
 async function searchWikimedia(query) {
   const url = new URL(WIKIMEDIA_ENDPOINT);
   url.searchParams.set("action", "query");
@@ -257,19 +194,6 @@ async function searchWikimedia(query) {
   url.searchParams.set("format", "json");
   const payload = await fetchJson(url);
   return payload ? parseWikimedia(payload, query) : null;
-}
-
-async function searchWithFallback(query) {
-  const openverse = searchOpenverse(query).catch(() => null);
-  const wikimedia = searchWikimedia(query).catch(() => null);
-  const openverseWindow = new Promise((resolve) =>
-    setTimeout(() => resolve(null), 2_500)
-  );
-  const preferred = await Promise.race([openverse, openverseWindow]);
-  if (preferred) {
-    return preferred;
-  }
-  return (await wikimedia) ?? (await openverse);
 }
 
 async function resolveCardImage(input) {
@@ -288,7 +212,7 @@ async function resolveCardImage(input) {
     return cached.data;
   }
 
-  const result = await searchWithFallback(query);
+  const result = await searchWikimedia(query);
   const data = result ?? { found: false, query, provider: "" };
   cache.set(key, { at: now, data });
   return data;
