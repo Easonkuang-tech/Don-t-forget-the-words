@@ -14,7 +14,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useMemo, useState } from "react";
 import { EmptyState } from "../components/EmptyState";
 import { PronounceRow } from "../components/PronounceRow";
-import { createCard, db } from "../lib/db";
+import { createCard, db, updateCard } from "../lib/db";
 import { cardImageFields, findCardImage } from "../lib/cardImage";
 import {
   detectContentType,
@@ -151,13 +151,7 @@ export function DiscoverPage() {
     setSaving(true);
     setNotice("");
     try {
-      const image = await findCardImage({
-        word: draft.english,
-        meaning: draft.chinese,
-        definition: draft.definitionEn || draft.definitionZh || draft.chinese,
-        language: activeLanguage
-      });
-      await createCard({
+      const card = await createCard({
         deckId: activeDeckId,
         contentType: draft.contentType,
         english: draft.english,
@@ -174,8 +168,7 @@ export function DiscoverPage() {
         definitionZh: draft.definitionZh,
         partOfSpeech: draft.partOfSpeech,
         tags: [],
-        source: draft.source,
-        ...cardImageFields(image)
+        source: draft.source
       });
       setNotice(
         `已加入“${decks.find((deck) => deck.id === activeDeckId)?.name ?? "卡组"}”`
@@ -183,6 +176,19 @@ export function DiscoverPage() {
       setQuery("");
       setTarget("");
       setDraft(null);
+      void findCardImage({
+        word: draft.english,
+        meaning: draft.chinese,
+        definition: draft.definitionEn || draft.definitionZh || draft.chinese,
+        language: activeLanguage
+      })
+        .then((image) => {
+          if (image.found) {
+            return updateCard(card.id, cardImageFields(image));
+          }
+          return undefined;
+        })
+        .catch(() => undefined);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "加入卡组失败");
     } finally {

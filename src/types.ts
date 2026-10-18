@@ -47,6 +47,7 @@ export interface Card {
   imageThumbUrl?: string;
   imageAttribution?: string;
   imageSourceUrl?: string;
+  imageOrigin?: "user" | "auto" | "";
   tags: string[];
   source: "manual" | "template" | "dictionary" | "translation";
   level: number;

@@ -114,6 +114,7 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
       imageThumbUrl: string;
       imageAttribution: string;
       imageSourceUrl: string;
+      imageOrigin: "user" | "auto" | "";
     }
   ) {
     if (!question) {
@@ -482,6 +483,7 @@ export function ReviewPage({ request, onExit }: ReviewPageProps) {
               imageThumbUrl={question.card.imageThumbUrl}
               imageAttribution={question.card.imageAttribution}
               imageSourceUrl={question.card.imageSourceUrl}
+              imageOrigin={question.card.imageOrigin}
               autoLoad
               onResolved={handleImageResolved}
             />

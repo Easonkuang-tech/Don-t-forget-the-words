@@ -1,6 +1,6 @@
 const OPENVERSE_ENDPOINT = "https://api.openverse.org/v1/images/";
 const WIKIMEDIA_ENDPOINT = "https://commons.wikimedia.org/w/api.php";
-const REQUEST_TIMEOUT_MS = 12_000;
+const REQUEST_TIMEOUT_MS = 5_000;
 const HIT_TTL_MS = 7 * 24 * 60 * 60 * 1_000;
 const MISS_TTL_MS = 60 * 60 * 1_000;
 
@@ -16,11 +16,33 @@ const ORDINALS = new Set([
   "eighth", "ninth", "tenth", "eleventh", "twelfth", "premier", "première"
 ]);
 
+const MONTH_HINTS = [
+  { keys: ["janvier", "january", "一月"], query: "January winter" },
+  { keys: ["février", "fevrier", "february", "二月"], query: "February winter" },
+  { keys: ["mars", "march", "三月"], query: "March spring bloom" },
+  { keys: ["avril", "april", "四月"], query: "April spring flowers" },
+  { keys: ["mai", "may", "五月"], query: "May spring flowers" },
+  { keys: ["juin", "june", "六月"], query: "June summer sunlight" },
+  { keys: ["juillet", "july", "七月"], query: "July summer vacation" },
+  { keys: ["août", "aout", "august", "八月"], query: "August summer holiday" },
+  { keys: ["septembre", "september", "九月"], query: "September autumn harvest" },
+  { keys: ["octobre", "october", "十月"], query: "October autumn leaves" },
+  { keys: ["novembre", "november", "十一月"], query: "November autumn fog" },
+  { keys: ["décembre", "decembre", "december", "十二月"], query: "December winter snow" }
+];
+
 const cache = new Map();
 let queue = Promise.resolve();
 
 function normalizeText(value) {
   return String(value ?? "").trim().replace(/\s+/g, " ");
+}
+
+function normalizeKey(value) {
+  return normalizeText(value)
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLocaleLowerCase();
 }
 
 function words(value) {
@@ -29,8 +51,18 @@ function words(value) {
     .match(/[\p{L}][\p{L}'’-]*/gu) ?? [];
 }
 
-export function buildImageQuery({ word, definition, language }) {
+export function buildImageQuery({ word, meaning, definition, language }) {
   const safeWord = normalizeText(word);
+  const wordKey = normalizeKey(safeWord);
+  const meaningText = normalizeText(meaning);
+  const month = MONTH_HINTS.find(
+    (hint) =>
+      hint.keys.some((key) => normalizeKey(key) === wordKey) ||
+      hint.keys.some((key) => /^[\u4e00-\u9fff]+$/.test(key) && meaningText.includes(key))
+  );
+  if (month) {
+    return month.query;
+  }
   if (language !== "fr") {
     return safeWord;
   }
@@ -70,15 +102,42 @@ function stripHtml(value) {
 
 export function parseOpenverse(payload, query) {
   const results = Array.isArray(payload?.results) ? payload.results : [];
-  const result = results.find(
-    (item) =>
-      item &&
-      item.mature !== true &&
-      typeof item.url === "string" &&
-      item.url &&
-      typeof item.thumbnail === "string" &&
-      item.thumbnail
+  const terms = normalizeKey(query).split(/\s+/).filter(Boolean);
+  const personQuery = terms.some((term) =>
+    ["person", "people", "woman", "man", "portrait", "girl", "boy"].includes(term)
   );
+
+  function score(item) {
+    const text = normalizeKey(
+      [
+        item?.title,
+        ...(Array.isArray(item?.tags) ? item.tags.map((tag) => tag?.name) : [])
+      ].join(" ")
+    );
+    let value = terms.reduce(
+      (total, term) => total + (text.includes(term) ? 2 : 0),
+      0
+    );
+    if (
+      !personQuery &&
+      /portrait|woman|man|people|person|girl|boy/.test(text)
+    ) {
+      value -= 5;
+    }
+    return value;
+  }
+
+  const result = results
+    .filter(
+      (item) =>
+        item &&
+        item.mature !== true &&
+        typeof item.url === "string" &&
+        item.url &&
+        typeof item.thumbnail === "string" &&
+        item.thumbnail
+    )
+    .sort((left, right) => score(right) - score(left))[0];
   if (!result) {
     return null;
   }
@@ -108,7 +167,29 @@ export function parseWikimedia(payload, query) {
       typeof info.thumburl === "string" &&
       ["image/jpeg", "image/png", "image/webp"].includes(info.mime)
     );
-  const candidate = candidates[0];
+  const terms = normalizeKey(query).split(/\s+/).filter(Boolean);
+  const candidate = candidates
+    .map((entry) => {
+      const text = normalizeKey(
+        [
+          entry.page?.title,
+          stripHtml(entry.info.extmetadata?.ImageDescription?.value)
+        ].join(" ")
+      );
+      const matches = terms.reduce(
+        (total, term) => total + (text.includes(term) ? 2 : 0),
+        0
+      );
+      const medicalPenalty =
+        !terms.some((term) => ["medical", "disease"].includes(term)) &&
+        /alopecia|disease|medical|surgery|wound|disorder|portrait|woman|man|person|people/.test(
+          text
+        )
+          ? 5
+          : 0;
+      return { entry, score: matches - medicalPenalty };
+    })
+    .sort((left, right) => right.score - left.score)[0]?.entry;
   if (!candidate) {
     return null;
   }
@@ -156,7 +237,7 @@ async function fetchJson(url, headers = {}) {
 async function searchOpenverse(query) {
   const url = new URL(OPENVERSE_ENDPOINT);
   url.searchParams.set("q", query);
-  url.searchParams.set("page_size", "6");
+  url.searchParams.set("page_size", "4");
   url.searchParams.set("license_type", "commercial");
   url.searchParams.set("mature", "false");
   const payload = await fetchJson(url);
@@ -169,7 +250,7 @@ async function searchWikimedia(query) {
   url.searchParams.set("generator", "search");
   url.searchParams.set("gsrsearch", query);
   url.searchParams.set("gsrnamespace", "6");
-  url.searchParams.set("gsrlimit", "6");
+  url.searchParams.set("gsrlimit", "4");
   url.searchParams.set("prop", "imageinfo");
   url.searchParams.set("iiprop", "url|mime|size|extmetadata");
   url.searchParams.set("iiurlwidth", "960");
@@ -178,14 +259,28 @@ async function searchWikimedia(query) {
   return payload ? parseWikimedia(payload, query) : null;
 }
 
+async function searchWithFallback(query) {
+  const openverse = searchOpenverse(query).catch(() => null);
+  const wikimedia = searchWikimedia(query).catch(() => null);
+  const openverseWindow = new Promise((resolve) =>
+    setTimeout(() => resolve(null), 2_500)
+  );
+  const preferred = await Promise.race([openverse, openverseWindow]);
+  if (preferred) {
+    return preferred;
+  }
+  return (await wikimedia) ?? (await openverse);
+}
+
 async function resolveCardImage(input) {
   const word = normalizeText(input?.word);
   if (!word) {
     return { found: false, query: "", provider: "" };
   }
   const language = input?.language === "fr" ? "fr" : "en";
+  const meaning = normalizeText(input?.meaning);
   const definition = normalizeText(input?.definition);
-  const query = buildImageQuery({ word, definition, language });
+  const query = buildImageQuery({ word, meaning, definition, language });
   const key = `${language}:${word.toLocaleLowerCase(language)}:${definition}`;
   const now = Date.now();
   const cached = cache.get(key);
@@ -193,7 +288,7 @@ async function resolveCardImage(input) {
     return cached.data;
   }
 
-  const result = (await searchOpenverse(query)) ?? (await searchWikimedia(query));
+  const result = await searchWithFallback(query);
   const data = result ?? { found: false, query, provider: "" };
   cache.set(key, { at: now, data });
   return data;

@@ -23,7 +23,8 @@ describe("card image client", () => {
       imageUrl: "https://example.test/full.jpg",
       imageThumbUrl: "https://example.test/full.jpg",
       imageAttribution: "Author",
-      imageSourceUrl: "https://example.test/source"
+      imageSourceUrl: "https://example.test/source",
+      imageOrigin: "auto"
     });
   });
 });

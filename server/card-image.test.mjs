@@ -13,7 +13,18 @@ describe("buildImageQuery", () => {
         definition: "January (first month of the Gregorian calendar)",
         language: "fr"
       })
-    ).toBe("January month");
+    ).toBe("January winter");
+  });
+
+  it("uses the Chinese meaning to resolve months even in an English deck", () => {
+    expect(
+      buildImageQuery({
+        word: "avril",
+        meaning: "四月",
+        definition: "",
+        language: "en"
+      })
+    ).toBe("April spring flowers");
   });
 
   it("falls back to the word and keeps English queries simple", () => {
@@ -57,6 +68,31 @@ describe("image result parsers", () => {
       sourceUrl: "https://example.test/b",
       attribution: "Author · CC BY"
     });
+  });
+
+  it("prefers matching results and penalises unrelated portraits", () => {
+    const parsed = parseOpenverse(
+      {
+        results: [
+          {
+            title: "Portrait of a woman",
+            tags: [{ name: "portrait" }, { name: "woman" }],
+            url: "https://example.test/person.jpg",
+            thumbnail: "https://example.test/person-thumb.jpg",
+            mature: false
+          },
+          {
+            title: "April spring flowers",
+            tags: [{ name: "april" }, { name: "spring" }, { name: "flowers" }],
+            url: "https://example.test/april.jpg",
+            thumbnail: "https://example.test/april-thumb.jpg",
+            mature: false
+          }
+        ]
+      },
+      "April spring flowers"
+    );
+    expect(parsed?.imageUrl).toBe("https://example.test/april.jpg");
   });
 
   it("parses a Wikimedia image and skips non-photo files", () => {

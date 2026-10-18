@@ -109,13 +109,7 @@ export function CreatePage() {
 
     setSaving(true);
     try {
-      const image = await findCardImage({
-        word: draft.english,
-        meaning: draft.chinese,
-        definition: draft.definitionEn || draft.definitionZh || draft.chinese,
-        language: activeLanguage
-      });
-      await createCard({
+      const card = await createCard({
         deckId: activeDeckId,
         contentType: draft.contentType,
         english: draft.english.trim(),
@@ -128,10 +122,22 @@ export function CreatePage() {
         definitionZh: draft.definitionZh.trim(),
         partOfSpeech: draft.partOfSpeech.trim(),
         tags: draft.tags,
-        source: draft.source,
-        ...cardImageFields(image)
+        source: draft.source
       });
-      setNotice(image.found ? "卡片已保存并找到配图" : "卡片已保存，配图可在复习页重试");
+      setNotice("卡片已保存，配图正在后台加载");
+      void findCardImage({
+        word: draft.english,
+        meaning: draft.chinese,
+        definition: draft.definitionEn || draft.definitionZh || draft.chinese,
+        language: activeLanguage
+      })
+        .then((image) => {
+          if (image.found) {
+            return updateCard(card.id, cardImageFields(image));
+          }
+          return undefined;
+        })
+        .catch(() => undefined);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "保存失败");
     } finally {

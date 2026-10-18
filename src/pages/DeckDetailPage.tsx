@@ -1,13 +1,17 @@
 import {
   ArrowLeft,
+  Check,
   ChevronRight,
+  ImagePlus,
+  LoaderCircle,
   Pencil,
   Play,
   Search,
-  Trash2
+  Trash2,
+  Upload
 } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { EmptyState } from "../components/EmptyState";
 import { Modal } from "../components/Modal";
 import { PronounceRow } from "../components/PronounceRow";
@@ -17,6 +21,11 @@ import {
   deleteCard,
   updateCard
 } from "../lib/db";
+import {
+  cardImageFields,
+  findCardImage,
+  uploadCardImage
+} from "../lib/cardImage";
 import { dateKey } from "../lib/format";
 import { deckLanguage, languageLabel, languageName } from "../lib/language";
 import type { Card, ContentType, LanguageCode } from "../types";
@@ -35,6 +44,14 @@ const filterOptions: { value: CardFilter; label: string }[] = [
   { value: "phrase", label: "词伙" },
   { value: "sentence", label: "句子" }
 ];
+
+function normalizeMatch(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]/gu, "");
+}
 
 export function DeckDetailPage({
   deckId,
@@ -61,6 +78,11 @@ export function DeckDetailPage({
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<CardFilter>("all");
   const [editing, setEditing] = useState<Card | null>(null);
+  const [batchMode, setBatchMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [batching, setBatching] = useState(false);
+  const [batchNotice, setBatchNotice] = useState("");
+  const uploadRef = useRef<HTMLInputElement | null>(null);
   const learningLanguage = deckLanguage(deck);
 
   const filtered = useMemo(() => {
@@ -81,6 +103,106 @@ export function DeckDetailPage({
       );
     });
   }, [cards, filter, query]);
+
+  const selectedCards = useMemo(
+    () => cards.filter((card) => selected.has(card.id)),
+    [cards, selected]
+  );
+
+  function toggleSelected(id: string) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  function toggleBatchMode() {
+    setBatchMode((current) => !current);
+    setSelected(new Set());
+    setBatchNotice("");
+  }
+
+  async function findImagesForSelected() {
+    if (!selectedCards.length || batching) {
+      return;
+    }
+    setBatching(true);
+    let completed = 0;
+    let skipped = 0;
+    try {
+      for (const card of selectedCards) {
+        if (card.imageOrigin === "user") {
+          skipped += 1;
+          continue;
+        }
+        setBatchNotice(`正在查找 ${completed + 1}/${selectedCards.length}：${card.english}`);
+        const image = await findCardImage({
+          word: card.english,
+          meaning: card.chinese,
+          definition:
+            card.definitionEn || card.definitionZh || card.chinese,
+          language: learningLanguage
+        });
+        if (image.found) {
+          await updateCard(card.id, cardImageFields(image));
+        }
+        completed += 1;
+      }
+      setBatchNotice(
+        `批量找图完成：处理 ${completed} 张${skipped ? `，跳过 ${skipped} 张用户图片` : ""}`
+      );
+    } finally {
+      setBatching(false);
+    }
+  }
+
+  async function uploadImagesForSelected(files: FileList | null) {
+    if (!files?.length || !selectedCards.length || batching) {
+      return;
+    }
+    setBatching(true);
+    const pending = [...selectedCards];
+    const unmatched: string[] = [];
+    let uploaded = 0;
+    try {
+      for (const file of Array.from(files)) {
+        const fileKey = normalizeMatch(file.name.replace(/\.[^.]+$/, ""));
+        let index = pending.findIndex(
+          (card) =>
+            normalizeMatch(card.english) === fileKey ||
+            normalizeMatch(card.chinese) === fileKey
+        );
+        if (index < 0 && files.length === selectedCards.length) {
+          index = 0;
+        }
+        if (index < 0) {
+          unmatched.push(file.name);
+          continue;
+        }
+        const [card] = pending.splice(index, 1);
+        setBatchNotice(`正在上传：${card.english}`);
+        try {
+          await updateCard(card.id, await uploadCardImage(file));
+          uploaded += 1;
+        } catch {
+          unmatched.push(file.name);
+        }
+      }
+      setBatchNotice(
+        `批量上传完成：${uploaded} 张${unmatched.length ? `，未匹配 ${unmatched.length} 张` : ""}`
+      );
+    } finally {
+      setBatching(false);
+      if (uploadRef.current) {
+        uploadRef.current.value = "";
+      }
+    }
+  }
 
   if (!deck) {
     return (
@@ -161,6 +283,15 @@ export function DeckDetailPage({
         </div>
       </section>
 
+      <input
+        ref={uploadRef}
+        type="file"
+        accept="image/*"
+        multiple
+        hidden
+        onChange={(event) => void uploadImagesForSelected(event.target.files)}
+      />
+
       <section className="deck-detail-toolbar">
         <div className="input-with-status">
           <Search size={17} className="search-glyph" />
@@ -177,7 +308,67 @@ export function DeckDetailPage({
           options={filterOptions}
           onChange={(value) => setFilter(value)}
         />
+        <button
+          type="button"
+          className="secondary-button batch-image-toggle"
+          onClick={toggleBatchMode}
+        >
+          <ImagePlus size={16} />
+          {batchMode ? "退出批量" : "批量配图"}
+        </button>
       </section>
+
+      {batchMode ? (
+        <section className="batch-image-bar">
+          <div className="batch-image-summary">
+            <strong>已选 {selectedCards.length} 张</strong>
+            <span>用户已上传的图片会自动跳过自动找图</span>
+          </div>
+          <div className="batch-image-actions">
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={() => setSelected(new Set(filtered.map((card) => card.id)))}
+              disabled={batching}
+            >
+              全选
+            </button>
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={() => setSelected(new Set())}
+              disabled={batching}
+            >
+              清空
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => void findImagesForSelected()}
+              disabled={!selectedCards.length || batching}
+            >
+              {batching ? (
+                <LoaderCircle className="spin" size={15} />
+              ) : (
+                <ImagePlus size={15} />
+              )}
+              批量找图
+            </button>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => uploadRef.current?.click()}
+              disabled={!selectedCards.length || batching}
+            >
+              <Upload size={15} />
+              批量上传
+            </button>
+          </div>
+          <small>批量上传时，文件名优先匹配单词或中文释义。</small>
+        </section>
+      ) : null}
+
+      {batchNotice ? <div className="notice-banner">{batchNotice}</div> : null}
 
       {!filtered.length ? (
         <EmptyState
@@ -195,6 +386,9 @@ export function DeckDetailPage({
               key={card.id}
               card={card}
               language={learningLanguage}
+              selectable={batchMode}
+              selected={selected.has(card.id)}
+              onToggleSelected={() => toggleSelected(card.id)}
               onEdit={() => setEditing(card)}
               onDelete={async () => {
                 if (window.confirm(`删除卡片"${card.english}"？`)) {
@@ -263,11 +457,17 @@ export function DeckDetailPage({
 function CardRow({
   card,
   language,
+  selectable,
+  selected,
+  onToggleSelected,
   onEdit,
   onDelete
 }: {
   card: Card;
   language: LanguageCode;
+  selectable: boolean;
+  selected: boolean;
+  onToggleSelected: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -278,8 +478,24 @@ function CardRow({
   };
 
   return (
-    <li className="card-list-item">
-      <button type="button" className="card-list-main" onClick={onEdit}>
+    <li className={`card-list-item${selectable ? " is-selectable" : ""}`}>
+      {selectable ? (
+        <button
+          type="button"
+          className={`card-select-toggle${selected ? " is-selected" : ""}`}
+          onClick={onToggleSelected}
+          aria-label={selected ? `取消选择 ${card.english}` : `选择 ${card.english}`}
+          aria-pressed={selected}
+        >
+          {selected ? <Check size={16} /> : null}
+        </button>
+      ) : null}
+      <button
+        type="button"
+        className="card-list-main"
+        onClick={selectable ? onToggleSelected : onEdit}
+        aria-pressed={selectable ? selected : undefined}
+      >
         <div className="card-list-head">
           <span className="part-of-speech">{labelMap[card.contentType]}</span>
           {card.phonetic ? (
@@ -330,27 +546,31 @@ function CardRow({
         className="card-list-pronounce"
       />
       <div className="row-actions">
-        <button
-          type="button"
-          className="icon-button compact"
-          onClick={onEdit}
-          aria-label={`编辑 ${card.english}`}
-          title="编辑"
-        >
-          <Pencil size={15} />
-        </button>
-        <button
-          type="button"
-          className="icon-button compact danger"
-          onClick={onDelete}
-          aria-label={`删除 ${card.english}`}
-          title="删除"
-        >
-          <Trash2 size={15} />
-        </button>
-        <span className="card-list-chevron" aria-hidden="true">
-          <ChevronRight size={16} />
-        </span>
+        {selectable ? null : (
+          <>
+            <button
+              type="button"
+              className="icon-button compact"
+              onClick={onEdit}
+              aria-label={`编辑 ${card.english}`}
+              title="编辑"
+            >
+              <Pencil size={15} />
+            </button>
+            <button
+              type="button"
+              className="icon-button compact danger"
+              onClick={onDelete}
+              aria-label={`删除 ${card.english}`}
+              title="删除"
+            >
+              <Trash2 size={15} />
+            </button>
+            <span className="card-list-chevron" aria-hidden="true">
+              <ChevronRight size={16} />
+            </span>
+          </>
+        )}
       </div>
       <small className="card-list-updated">
         最近更新 {dateKey(card.updatedAt)}

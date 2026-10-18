@@ -71,6 +71,7 @@ function cardRow(userId: string, card: Card): UnknownRow {
     image_thumb_url: card.imageThumbUrl ?? "",
     image_attribution: card.imageAttribution ?? "",
     image_source_url: card.imageSourceUrl ?? "",
+    image_origin: card.imageOrigin ?? "",
     tags: card.tags,
     source: card.source,
     level: card.level,
@@ -159,6 +160,10 @@ function fromCardRow(row: UnknownRow): Card {
     imageThumbUrl: String(row.image_thumb_url ?? ""),
     imageAttribution: String(row.image_attribution ?? ""),
     imageSourceUrl: String(row.image_source_url ?? ""),
+    imageOrigin:
+      row.image_origin === "user" || row.image_origin === "auto"
+        ? row.image_origin
+        : "",
     tags: Array.isArray(row.tags) ? row.tags.map(String) : [],
     source: row.source as Card["source"],
     level: Number(row.level ?? 0),
@@ -291,6 +296,7 @@ export async function upsertCloudCard(
     delete legacyRow.image_thumb_url;
     delete legacyRow.image_attribution;
     delete legacyRow.image_source_url;
+    delete legacyRow.image_origin;
     const legacy = await requireSupabase()
       .from("cards")
       .upsert(legacyRow, { onConflict: "user_id,id" });
