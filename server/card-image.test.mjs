@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildImageQuery, parseWikimedia } from "./card-image.mjs";
+import {
+  buildImageQuery,
+  parseWikipediaSummary,
+  parseWikimedia
+} from "./card-image.mjs";
 
 describe("buildImageQuery", () => {
   it("uses the English definition for French words", () => {
@@ -49,6 +53,44 @@ describe("buildImageQuery", () => {
 });
 
 describe("image result parsers", () => {
+  it("uses the curated main image from a Wikipedia article", () => {
+    expect(
+      parseWikipediaSummary(
+        {
+          title: "Janvier",
+          type: "standard",
+          thumbnail: { source: "https://example.test/janvier-thumb.jpg" },
+          originalimage: { source: "https://example.test/janvier.jpg" },
+          content_urls: {
+            desktop: { page: "https://fr.wikipedia.org/wiki/Janvier" }
+          }
+        },
+        "fr"
+      )
+    ).toEqual({
+      found: true,
+      query: "Janvier",
+      provider: "Wikipedia (FR)",
+      imageUrl: "https://example.test/janvier.jpg",
+      imageThumbUrl: "https://example.test/janvier-thumb.jpg",
+      sourceUrl: "https://fr.wikipedia.org/wiki/Janvier",
+      attribution: "Wikipedia · Janvier"
+    });
+  });
+
+  it("ignores Wikipedia disambiguation pages", () => {
+    expect(
+      parseWikipediaSummary(
+        {
+          title: "Cinq",
+          type: "disambiguation",
+          thumbnail: { source: "https://example.test/wrong.jpg" }
+        },
+        "fr"
+      )
+    ).toBeNull();
+  });
+
   it("prefers matching Wikimedia results and penalises portraits", () => {
     const parsed = parseWikimedia(
       {

@@ -397,7 +397,8 @@ decks.language text not null default 'en' check (language in ('en','fr'))
 第一版使用免费图库，不调用图片生成模型：
 
 ```text
-图源：Wikimedia Commons（维基百科图片库，无需密钥）
+主图源：Wikipedia 词条主图（无需密钥）
+兜底：Wikimedia Commons 文件搜索
 查询词：语言 + 单词 + 词典释义
 ```
 
@@ -972,7 +973,7 @@ translationCache
 ```text
 TypeScript 类型检查：通过
 Vite 生产构建：通过
-Vitest：51 项测试全部通过
+Vitest：53 项测试全部通过
 ECDICT：770,611 条离线词条
 Chrome 浏览器回归：通过
 登录与退出登录：通过

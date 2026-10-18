@@ -189,9 +189,9 @@ export function parseWikimedia(payload, query) {
   };
 }
 
-async function fetchJson(url, headers = {}) {
+async function fetchJson(url, headers = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(url, {
       signal: controller.signal,
@@ -210,6 +210,48 @@ async function fetchJson(url, headers = {}) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+export function parseWikipediaSummary(payload, language = "en") {
+  if (
+    !payload ||
+    payload.type === "disambiguation" ||
+    (!payload.thumbnail?.source && !payload.originalimage?.source)
+  ) {
+    return null;
+  }
+  const imageUrl = payload.originalimage?.source || payload.thumbnail?.source;
+  const imageThumbUrl = payload.thumbnail?.source || imageUrl;
+  if (!imageUrl || !imageThumbUrl) {
+    return null;
+  }
+  return {
+    found: true,
+    query: payload.title || "",
+    provider: `Wikipedia (${language.toUpperCase()})`,
+    imageUrl,
+    imageThumbUrl,
+    sourceUrl:
+      payload.content_urls?.desktop?.page ||
+      `https://${language}.wikipedia.org/wiki/${encodeURIComponent(
+        payload.title || ""
+      )}`,
+    attribution: `Wikipedia · ${payload.title || "article"}`
+  };
+}
+
+async function searchWikipedia(word, language) {
+  const url = new URL(
+    `https://${language}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(
+      word
+    )}`
+  );
+  const payload = await fetchJson(
+    url,
+    { "accept-language": language },
+    3_000
+  );
+  return payload ? parseWikipediaSummary(payload, language) : null;
 }
 
 async function searchWikimedia(query) {
@@ -243,7 +285,8 @@ async function resolveCardImage(input) {
     return cached.data;
   }
 
-  const result = await searchWikimedia(query);
+  const result =
+    (await searchWikipedia(word, language)) ?? (await searchWikimedia(query));
   const data = result ?? { found: false, query, provider: "" };
   cache.set(key, { at: now, data });
   return data;
