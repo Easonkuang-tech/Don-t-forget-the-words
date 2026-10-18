@@ -972,7 +972,7 @@ translationCache
 ```text
 TypeScript 类型检查：通过
 Vite 生产构建：通过
-Vitest：50 项测试全部通过
+Vitest：51 项测试全部通过
 ECDICT：770,611 条离线词条
 Chrome 浏览器回归：通过
 登录与退出登录：通过

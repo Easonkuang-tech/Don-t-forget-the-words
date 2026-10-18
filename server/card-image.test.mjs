@@ -23,6 +23,17 @@ describe("buildImageQuery", () => {
     ).toBe("April spring flowers");
   });
 
+  it("maps French number words to a number image query", () => {
+    expect(
+      buildImageQuery({
+        word: "cinq",
+        meaning: "5 五",
+        definition: "five",
+        language: "fr"
+      })
+    ).toBe("number 5");
+  });
+
   it("falls back to the word and keeps English queries simple", () => {
     expect(
       buildImageQuery({ word: "bonjour", definition: "", language: "fr" })

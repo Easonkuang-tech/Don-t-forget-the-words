@@ -30,6 +30,30 @@ const MONTH_HINTS = [
   { keys: ["décembre", "decembre", "december", "十二月"], query: "December winter snow" }
 ];
 
+const NUMBER_HINTS = [
+  ["zero", "zéro", "零", "number 0"],
+  ["one", "un", "一", "number 1"],
+  ["two", "deux", "二", "number 2"],
+  ["three", "trois", "三", "number 3"],
+  ["four", "quatre", "四", "number 4"],
+  ["five", "cinq", "五", "number 5"],
+  ["six", "six", "六", "number 6"],
+  ["seven", "sept", "七", "number 7"],
+  ["eight", "huit", "八", "number 8"],
+  ["nine", "neuf", "九", "number 9"],
+  ["ten", "dix", "十", "number 10"],
+  ["eleven", "onze", "十一", "number 11"],
+  ["twelve", "douze", "十二", "number 12"],
+  ["thirteen", "treize", "十三", "number 13"],
+  ["fourteen", "quatorze", "十四", "number 14"],
+  ["fifteen", "quinze", "十五", "number 15"],
+  ["sixteen", "seize", "十六", "number 16"],
+  ["seventeen", "dix-sept", "十七", "number 17"],
+  ["eighteen", "dix-huit", "十八", "number 18"],
+  ["nineteen", "dix-neuf", "十九", "number 19"],
+  ["twenty", "vingt", "二十", "number 20"]
+];
+
 const cache = new Map();
 let queue = Promise.resolve();
 
@@ -61,6 +85,13 @@ export function buildImageQuery({ word, meaning, definition, language }) {
   );
   if (month) {
     return month.query;
+  }
+  const number = NUMBER_HINTS.find(
+    ([en, fr]) =>
+      normalizeKey(en) === wordKey || normalizeKey(fr) === wordKey
+  );
+  if (number) {
+    return number[3];
   }
   if (language !== "fr") {
     return safeWord;
